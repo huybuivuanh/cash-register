@@ -21,22 +21,21 @@ export default function MainLayout({
     }
   }, [user, loading, router]);
 
-  if (loading) {
-    return (
-      <div className="min-h-[100dvh] min-h-screen flex items-center justify-center p-4">
-        <p className="text-foreground/60">Loading…</p>
-      </div>
-    );
-  }
+  const signedIn = !loading && !!user;
 
-  if (!user) {
-    return null;
-  }
-
+  // Always render {children} (hidden until signed in) so the server renders the
+  // nested segments too; returning early here breaks instant-navigation validation.
   return (
     <>
-      <Navbar />
-      {children}
+      {loading && (
+        <div className="min-h-[100dvh] min-h-screen flex items-center justify-center p-4">
+          <p className="text-foreground/60">Loading…</p>
+        </div>
+      )}
+      <div hidden={!signedIn}>
+        {signedIn && <Navbar />}
+        {children}
+      </div>
     </>
   );
 }

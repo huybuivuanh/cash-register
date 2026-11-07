@@ -154,7 +154,7 @@ are listed separately (`RF` count and amount).
 /reports         X report, Z close, Z history, day / range summary, print.
 /settings        Taxes, tax buttons, receipt header/footer,
                  starting counters (GT, Z number, receipt number),
-                 business-day cutoff, auto-print on/off.
+                 auto-print on/off.
 /login           Firebase Auth sign-in
 ```
 
@@ -183,7 +183,6 @@ Touch targets ≥ 64px. Tax buttons are generated from settings.
 settings/store
   name, address, phone, receiptHeader, receiptFooter
   timezone: "America/Regina"
-  businessDayCutoff: "04:00"   // see §8
   nextSeqNumber: 6             // shared by receipts, X and Z (000001…)
   nextZNumber: 3600            // continues from old register
   grandTotal: 1010588128       // GT in cents, never resets
@@ -206,7 +205,6 @@ batches/{batchId}
   zNumber: 3600
   status: "open" | "closed"
   openedAt, closedAt
-  businessDate: "2026-11-06"   // business date the batch was opened
   totals: BatchTotals | null   // snapshot written at Z
 
 transactions/{txnId}
@@ -215,7 +213,6 @@ transactions/{txnId}
   status: "completed" | "cancelled"
   batchId
   createdAt: Timestamp
-  businessDate: "2026-11-06"
   lines: [{
     buttonId, buttonLabel: "T1+2",
     amount: 22072,
@@ -251,21 +248,17 @@ All amounts are stored positive; `type` decides whether they add or subtract.
 
 ### Indexes
 - `transactions`: `batchId ASC, seq ASC`
-- `transactions`: `businessDate ASC, seq ASC`
 - `batches`: `zNumber DESC`
+- `batches`: `closedAt ASC`
 
 ---
 
-## 8. Business day (why the cutoff matters)
+## 8. Dates
 
-If Z is closed after midnight, the sales from, say, 9 PM to 1 AM happen on two
-calendar dates. A "summary for Nov 6" by calendar date would then miss the
-after-midnight sales and put them on Nov 7, which won't match that night's Z.
-
-Fix: a **business-day cutoff** setting (default 4:00 AM). A sale at 1:15 AM on
-Nov 7 is stamped `businessDate: "2026-11-06"`. Day summaries use
-`businessDate`, so they line up with the Z you closed that night. The receipt
-still prints the real date and time.
+Each sale stores its real date and time (`createdAt`). Each batch stores when
+it opened and when its Z was closed (`closedAt`). A batch belongs to the day its
+Z was closed, so a Z closed at 1 AM on Nov 7 is dated Nov 7, like the old
+register. Day / range summaries pick batches by `closedAt`.
 
 ---
 
@@ -295,8 +288,8 @@ Confirm dialog ("Close Z #3600? This can't be undone."), then one
 Then print `DAILY Z`.
 
 ### Day / range summary
-Query transactions by `businessDate` range, compute `BatchTotals`, list the Z
-reports in that range. Printable.
+Pick the closed batches whose `closedAt` falls in the range, add up their saved
+`totals`, and list those Z reports. Printable.
 
 ### Cancel
 Only for transactions in the open batch. Sets `status: "cancelled"`. Excluded
@@ -410,7 +403,6 @@ components/settings/                     StoreSettingsForm, tax editors
 components/print/                        Receipt, BatchReport
 lib/firebase.ts
 lib/money.ts                             cents parsing / formatting
-lib/business-date.ts                     business day with cutoff
 lib/tax.ts                               per-line tax, half-up rounding
 lib/register-machine.ts                  pure keypad state machine
 lib/reports.ts                           computeBatchTotals(transactions)

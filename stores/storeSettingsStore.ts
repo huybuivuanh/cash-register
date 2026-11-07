@@ -15,14 +15,13 @@ interface StoreSettingsState {
 const SETTINGS_DOC = doc(db, "settings", "store");
 
 /** Used until the settings doc is first saved. */
-const DEFAULTS: StoreSettings = {
+export const STORE_SETTINGS_DEFAULTS: StoreSettings = {
   name: "",
   address: "",
   phone: "",
   receiptHeader: "",
   receiptFooter: "THANK YOU, CALL AGAIN",
   timezone: "America/Regina",
-  businessDayCutoff: "04:00",
   nextSeqNumber: 1,
   nextZNumber: 1,
   grandTotal: 0,
@@ -46,8 +45,8 @@ export const useStoreSettingsStore = create<StoreSettingsState>((set) => ({
       (snapshot) => {
         set({
           settings: snapshot.exists()
-            ? ({ ...DEFAULTS, ...snapshot.data() } as StoreSettings)
-            : DEFAULTS,
+            ? ({ ...STORE_SETTINGS_DEFAULTS, ...snapshot.data() } as StoreSettings)
+            : STORE_SETTINGS_DEFAULTS,
           loading: false,
           error: null,
         });

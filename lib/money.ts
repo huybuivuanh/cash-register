@@ -24,3 +24,8 @@ const formatter = new Intl.NumberFormat("en-US", {
 export function formatMoney(cents: number): string {
   return formatter.format(cents / 100);
 }
+
+/** Receipt / X / Z number as printed: 6 → "000006" */
+export function formatSeq(seq: number): string {
+  return String(seq).padStart(6, "0");
+}

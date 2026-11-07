@@ -10,11 +10,9 @@ declare global {
     receiptHeader: string;
     receiptFooter: string;
     timezone: string;
-    /** "HH:MM" — sales before this time count toward the previous business day. */
-    businessDayCutoff: string;
     /** Next number for receipts, X and Z (shared, like the old register). */
     nextSeqNumber: number;
-    /** Z number the next batch gets. */
+    /** Z number of the open batch (or of the next one, before the first sale). Goes up at each Z. */
     nextZNumber: number;
     /** Lifetime grand total (GT) in cents. Never resets. */
     grandTotal: number;
@@ -43,6 +41,53 @@ declare global {
     taxIds: string[];
     order: number;
     active: boolean;
+  }
+
+  /** One tax charged on a line, copied at sale time so later rate changes don't alter history. */
+  interface LineTax {
+    taxId: string;
+    name: string;
+    rateBps: number;
+    amount: number;
+  }
+
+  /** One amount rung up with a tax button. */
+  interface TransactionLine {
+    buttonId: string;
+    buttonLabel: string;
+    amount: number;
+    taxes: LineTax[];
+  }
+
+  type TransactionType = "sale" | "refund";
+
+  /** transactions/{id} — a completed sale or refund. Amounts are positive; `type` decides the sign. */
+  interface Transaction {
+    id: string;
+    /** Receipt number, shared with X and Z. */
+    seq: number;
+    type: TransactionType;
+    status: "completed" | "cancelled";
+    batchId: string;
+    createdAt: Date;
+    lines: TransactionLine[];
+    subtotal: number;
+    taxTotal: number;
+    total: number;
+    /** Cash handed over (refunds: = total). */
+    tendered: number;
+    change: number;
+    cancelledAt?: Date;
+    cancelReason?: string;
+  }
+
+  /** batches/{id} — the sales between two Z reports. */
+  interface Batch {
+    id: string;
+    zNumber: number;
+    status: "open" | "closed";
+    openedAt: Date;
+    closedAt: Date | null;
   }
 }
 

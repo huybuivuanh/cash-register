@@ -18,7 +18,7 @@ const CANADA_TIMEZONES = [
 
 const sectionClass = "space-y-4 rounded-xl border border-foreground/10 p-4 sm:p-6";
 
-/** Store info, business day and counters. Mounted only once settings have loaded. */
+/** Store info, time zone and counters. Mounted only once settings have loaded. */
 export function StoreSettingsForm() {
   const settings = useStoreSettingsStore((s) => s.settings);
   if (!settings) return null;
@@ -35,7 +35,6 @@ function SettingsFields({ settings }: { settings: StoreSettings }) {
     receiptHeader: settings.receiptHeader,
     receiptFooter: settings.receiptFooter,
     timezone: settings.timezone,
-    businessDayCutoff: settings.businessDayCutoff,
     nextZNumber: String(settings.nextZNumber),
     grandTotal: formatMoney(settings.grandTotal),
     nextSeqNumber: String(settings.nextSeqNumber),
@@ -72,7 +71,6 @@ function SettingsFields({ settings }: { settings: StoreSettings }) {
         receiptHeader: form.receiptHeader.trim(),
         receiptFooter: form.receiptFooter.trim(),
         timezone: form.timezone,
-        businessDayCutoff: form.businessDayCutoff,
         nextZNumber,
         grandTotal,
         nextSeqNumber,
@@ -108,7 +106,7 @@ function SettingsFields({ settings }: { settings: StoreSettings }) {
       </section>
 
       <section className={sectionClass}>
-        <h2 className="text-lg font-semibold">Business day</h2>
+        <h2 className="text-lg font-semibold">Time zone</h2>
         <Field label="Timezone" htmlFor="timezone">
           <Select id="timezone" value={form.timezone} onChange={(e) => setField("timezone", e.target.value)}>
             {CANADA_TIMEZONES.map((tz) => (
@@ -117,13 +115,6 @@ function SettingsFields({ settings }: { settings: StoreSettings }) {
               </option>
             ))}
           </Select>
-        </Field>
-        <Field
-          label="Day starts at"
-          htmlFor="cutoff"
-          hint="Sales before this time count toward the previous day, so a Z closed after midnight matches that night's day summary."
-        >
-          <Input id="cutoff" type="time" value={form.businessDayCutoff} onChange={(e) => setField("businessDayCutoff", e.target.value)} />
         </Field>
       </section>
 

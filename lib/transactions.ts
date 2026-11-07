@@ -1,0 +1,73 @@
+import { collection, doc, runTransaction, serverTimestamp, writeBatch } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { saleTotals } from "@/lib/tax";
+import { STORE_SETTINGS_DEFAULTS } from "@/stores/storeSettingsStore";
+
+type NewTransaction = {
+  type: TransactionType;
+  lines: TransactionLine[];
+  tendered: number;
+  change: number;
+};
+
+/**
+ * Saves a sale or refund and gives it the next receipt number, all in one
+ * Firestore transaction so two saves can never get the same number.
+ * The first sale after a Z opens a new batch. Fails when offline — the
+ * register then keeps the sale on screen so ENTER can be pressed again.
+ */
+export async function saveTransaction(input: NewTransaction): Promise<{ id: string; seq: number }> {
+  const settingsRef = doc(db, "settings", "store");
+
+  return runTransaction(db, async (tx) => {
+    const snap = await tx.get(settingsRef);
+    const settings = { ...STORE_SETTINGS_DEFAULTS, ...snap.data() } as StoreSettings;
+    const seq = settings.nextSeqNumber;
+
+    let batchId = settings.openBatchId;
+    if (!batchId) {
+      const batchRef = doc(collection(db, "batches"));
+      tx.set(batchRef, {
+        zNumber: settings.nextZNumber,
+        status: "open",
+        openedAt: serverTimestamp(),
+        closedAt: null,
+        totals: null,
+      });
+      batchId = batchRef.id;
+    }
+
+    const { subtotal, taxTotal, total } = saleTotals(input.lines);
+    const txnRef = doc(collection(db, "transactions"));
+    tx.set(txnRef, {
+      seq,
+      type: input.type,
+      status: "completed",
+      batchId,
+      createdAt: serverTimestamp(),
+      lines: input.lines,
+      subtotal,
+      taxTotal,
+      total,
+      tendered: input.tendered,
+      change: input.change,
+    });
+
+    tx.set(settingsRef, { nextSeqNumber: seq + 1, openBatchId: batchId }, { merge: true });
+    return { id: txnRef.id, seq };
+  });
+}
+
+/**
+ * First-time setup: GST 5% + PST 6%, and the old register's buttons
+ * (DEPT026 → T1+2, DEPT027 → T1) plus NO TAX. Only for an empty database.
+ */
+export async function createDefaultTaxes(): Promise<void> {
+  const batch = writeBatch(db);
+  batch.set(doc(db, "taxes", "tax1"), { name: "TX1", label: "GST", rateBps: 500, order: 1, active: true });
+  batch.set(doc(db, "taxes", "tax2"), { name: "TX2", label: "PST", rateBps: 600, order: 2, active: true });
+  batch.set(doc(db, "taxButtons", "t12"), { label: "T1+2", taxIds: ["tax1", "tax2"], order: 1, active: true });
+  batch.set(doc(db, "taxButtons", "t1"), { label: "T1", taxIds: ["tax1"], order: 2, active: true });
+  batch.set(doc(db, "taxButtons", "notax"), { label: "NO TAX", taxIds: [], order: 3, active: true });
+  await batch.commit();
+}

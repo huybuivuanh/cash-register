@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Anyone signed in is staff (accounts are only created in the Firebase console).
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // settings/store, taxes, taxButtons: staff can read and edit, never delete
+    // (hide taxes and buttons with active: false instead).
+    match /settings/{docId} {
+      allow read, create, update: if signedIn();
+    }
+    match /taxes/{taxId} {
+      allow read, create, update: if signedIn();
+    }
+    match /taxButtons/{buttonId} {
+      allow read, create, update: if signedIn();
+    }
+
+    // Closed batches (Z reports) are final.
+    match /batches/{batchId} {
+      allow read, create: if signedIn();
+      allow update: if signedIn() && resource.data.status == 'open';
+    }
+
+    // Transactions are never edited or deleted — only cancelled.
+    match /transactions/{txnId} {
+      allow read, create: if signedIn();
+      allow update: if signedIn()
+        && resource.data.status == 'completed'
+        && request.resource.data.status == 'cancelled'
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'cancelledAt', 'cancelReason']);
+    }
+  }
+}

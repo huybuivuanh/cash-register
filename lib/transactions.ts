@@ -1,4 +1,16 @@
-import { collection, doc, runTransaction, serverTimestamp, writeBatch } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  runTransaction,
+  serverTimestamp,
+  where,
+  writeBatch,
+  type DocumentData,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { saleTotals } from "@/lib/tax";
 import { STORE_SETTINGS_DEFAULTS } from "@/stores/storeSettingsStore";
@@ -77,7 +89,8 @@ export type ClosedZ = { zNumber: number; closedAt: Date; totals: BatchTotals };
 /**
  * Closes the open batch (the Z), all in one Firestore transaction:
  * saves the totals with the GT before/after, adds NET to the GT, gives the Z
- * the next receipt number and moves on to the next Z number. The next sale
+ * the next receipt number, then moves on to the next Z number and restarts
+ * receipt numbers at 1. The next sale
  * opens the new batch.
  *
  * `totals` come from the transactions on screen. `seenNextSeq` is the next
@@ -115,11 +128,72 @@ export async function closeBatch(batchId: string, totals: BatchTotals, seenNextS
       {
         grandTotal: saved.grandTotalAfter,
         nextZNumber: zNumber + 1,
-        nextSeqNumber: settings.nextSeqNumber + 1,
+        nextSeqNumber: 1,
         openBatchId: null,
       },
       { merge: true },
     );
     return { zNumber, closedAt: new Date(), totals: saved };
   });
+}
+
+/** Firestore Timestamp (or a pending server time) → Date. */
+export function toDate(value: unknown): Date | null {
+  return value && typeof value === "object" && "toDate" in value ? (value as { toDate: () => Date }).toDate() : null;
+}
+
+export function toTransaction(id: string, data: DocumentData): Transaction {
+  return {
+    ...(data as Omit<Transaction, "id" | "createdAt" | "cancelledAt">),
+    id,
+    createdAt: toDate(data.createdAt) ?? new Date(),
+    cancelledAt: toDate(data.cancelledAt) ?? undefined,
+  };
+}
+
+function toBatch(id: string, data: DocumentData): Batch {
+  return {
+    id,
+    zNumber: data.zNumber,
+    status: data.status,
+    openedAt: toDate(data.openedAt) ?? new Date(),
+    closedAt: toDate(data.closedAt),
+    totals: data.totals ?? null,
+  };
+}
+
+export type Journal = {
+  transactions: Transaction[];
+  /** Z reports closed in the range. */
+  zReports: Batch[];
+  /** True when there were more than `max` transactions and the rest were left out. */
+  truncated: boolean;
+};
+
+/**
+ * Every sale, refund and Z close from `start` up to (not including) `end`,
+ * oldest first. Reads at most `max` transactions so a huge range can't load
+ * everything.
+ */
+export async function loadJournal(start: Date, end: Date, max: number): Promise<Journal> {
+  const [txnSnap, batchSnap] = await Promise.all([
+    getDocs(
+      query(
+        collection(db, "transactions"),
+        where("createdAt", ">=", start),
+        where("createdAt", "<", end),
+        orderBy("createdAt"),
+        limit(max + 1),
+      ),
+    ),
+    getDocs(
+      query(collection(db, "batches"), where("closedAt", ">=", start), where("closedAt", "<", end), orderBy("closedAt")),
+    ),
+  ]);
+  const transactions = txnSnap.docs.slice(0, max).map((d) => toTransaction(d.id, d.data()));
+  return {
+    transactions,
+    zReports: batchSnap.docs.map((d) => toBatch(d.id, d.data())),
+    truncated: txnSnap.docs.length > max,
+  };
 }

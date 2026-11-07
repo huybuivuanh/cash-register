@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, doc, onSnapshot, query, where, type DocumentData } from "firebase/firestore";
+import { collection, doc, onSnapshot, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { toDate, toTransaction } from "@/lib/transactions";
 
 type Loaded = {
   batchId: string;
@@ -10,20 +11,6 @@ type Loaded = {
   openedAt: Date | null;
   error: string | null;
 };
-
-/** Firestore Timestamp (or a pending server time) → Date. */
-function toDate(value: unknown): Date | null {
-  return value && typeof value === "object" && "toDate" in value ? (value as { toDate: () => Date }).toDate() : null;
-}
-
-function toTransaction(id: string, data: DocumentData): Transaction {
-  return {
-    ...(data as Omit<Transaction, "id" | "createdAt" | "cancelledAt">),
-    id,
-    createdAt: toDate(data.createdAt) ?? new Date(),
-    cancelledAt: toDate(data.cancelledAt) ?? undefined,
-  };
-}
 
 /** Live list of one batch's transactions, plus when the batch opened. */
 export function useBatchTransactions(batchId: string | null) {

@@ -10,7 +10,7 @@ declare global {
     receiptHeader: string;
     receiptFooter: string;
     timezone: string;
-    /** Next number for receipts, X and Z (shared, like the old register). */
+    /** Next receipt number in the open Z. Restarts at 1 after each Z (the Z itself takes the last one). */
     nextSeqNumber: number;
     /** Z number of the open batch (or of the next one, before the first sale). Goes up at each Z. */
     nextZNumber: number;
@@ -64,7 +64,7 @@ declare global {
   /** transactions/{id} — a completed sale or refund. Amounts are positive; `type` decides the sign. */
   interface Transaction {
     id: string;
-    /** Receipt number, shared with X and Z. */
+    /** Receipt number. Restarts at 1 after each Z. */
     seq: number;
     type: TransactionType;
     status: "completed" | "cancelled";

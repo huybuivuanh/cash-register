@@ -8,9 +8,21 @@ export function formatTapeDate(date: Date): string {
   return `${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function Row({ label, count, amount, bold }: { label: ReactNode; count?: number; amount: ReactNode; bold?: boolean }) {
+function Row({
+  label,
+  count,
+  amount,
+  bold,
+}: {
+  label: ReactNode;
+  count?: number;
+  amount: ReactNode;
+  bold?: boolean;
+}) {
   return (
-    <div className={`grid grid-cols-[1fr_auto_7.5rem] gap-2 ${bold ? "font-bold" : ""}`}>
+    <div
+      className={`grid grid-cols-[1fr_auto_7.5rem] gap-2 ${bold ? "font-bold" : ""}`}
+    >
       <span className="truncate">{label}</span>
       <span className="text-right">{count ?? ""}</span>
       <span className="text-right">{amount}</span>
@@ -29,17 +41,24 @@ export function BatchReport({
   storeName,
   totals,
   date,
+  grandTotal,
+  className = "",
 }: {
   kind: "x" | "z";
   zNumber: number;
   storeName: string;
   totals: BatchTotals;
   date: Date;
+  /** GT to print. Defaults to the GT saved with a closed Z. */
+  grandTotal?: number;
+  /** Extra classes for the outer box (e.g. colours). */
+  className?: string;
 }) {
+  const gt = grandTotal ?? totals.grandTotalAfter;
   const taxTotal = totals.byTax.reduce((sum, t) => sum + t.tax, 0);
 
   return (
-    <div className="mx-auto w-full max-w-sm rounded-xl border border-foreground/15 bg-background p-4 font-mono text-sm tabular-nums print:max-w-none print:border-0 print:p-0">
+    <div className={`w-full rounded-xl border border-foreground/15 bg-background p-4 font-mono text-sm tabular-nums print:border-0 print:p-0 ${className}`}>
       {storeName && <p className="text-center font-bold">{storeName}</p>}
       <p className="text-center font-bold">
         DAILY {kind === "z" ? "Z" : "X"} · Z #{zNumber}
@@ -50,9 +69,21 @@ export function BatchReport({
       </div>
 
       <Divider />
-      <Row label="GROSS (before tax)" count={totals.saleCount} amount={formatMoney(totals.gross)} />
-      <Row label="REFUNDS" count={totals.refundCount} amount={formatMoney(totals.refundTotal)} />
-      <Row label="CANCELLED" count={totals.cancelCount} amount={formatMoney(totals.cancelTotal)} />
+      <Row
+        label="GROSS (before tax)"
+        count={totals.saleCount}
+        amount={formatMoney(totals.gross)}
+      />
+      <Row
+        label="REFUNDS"
+        count={totals.refundCount}
+        amount={formatMoney(totals.refundTotal)}
+      />
+      <Row
+        label="CANCELLED"
+        count={totals.cancelCount}
+        amount={formatMoney(totals.cancelTotal)}
+      />
 
       <Divider />
       <div className="grid grid-cols-[1fr_7.5rem_6rem] gap-2 font-bold">
@@ -60,9 +91,14 @@ export function BatchReport({
         <span className="text-right">TAXABLE</span>
         <span className="text-right">TAX</span>
       </div>
-      {totals.byTax.length === 0 && <p className="text-foreground/60">No tax</p>}
+      {totals.byTax.length === 0 && (
+        <p className="text-foreground/60">No tax</p>
+      )}
       {totals.byTax.map((t) => (
-        <div key={`${t.taxId}:${t.rateBps}`} className="grid grid-cols-[1fr_7.5rem_6rem] gap-2">
+        <div
+          key={`${t.taxId}:${t.rateBps}`}
+          className="grid grid-cols-[1fr_7.5rem_6rem] gap-2"
+        >
           <span className="truncate">
             {t.name} {formatRate(t.rateBps)}
           </span>
@@ -76,15 +112,8 @@ export function BatchReport({
       <Row label="NET (with tax)" amount={formatMoney(totals.net)} bold />
 
       <Divider />
-      {kind === "z" && totals.grandTotalAfter !== undefined && (
-        <Row label="GT" amount={formatMoney(totals.grandTotalAfter)} />
-      )}
-      <div className="flex justify-between gap-2">
-        <span>RECEIPTS</span>
-        <span className="text-right">
-          {totals.firstSeq ? `#${formatSeq(totals.firstSeq)} – #${formatSeq(totals.lastSeq)}` : "—"}
-        </span>
-      </div>
+      {gt !== undefined && <Row label="GT" amount={formatMoney(gt)} />}
+      <Row label="Z TRANSACTIONS" amount={zNumber} />
     </div>
   );
 }

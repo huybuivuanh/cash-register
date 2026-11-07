@@ -129,7 +129,7 @@ function SettingsFields({ settings }: { settings: StoreSettings }) {
         <Field label="Grand total (GT)" htmlFor="gt" hint="GT printed on the old register's last Z.">
           <Input id="gt" inputMode="decimal" value={form.grandTotal} onChange={(e) => setField("grandTotal", e.target.value)} />
         </Field>
-        <Field label="Next receipt number" htmlFor="nextSeq">
+        <Field label="Next receipt number" htmlFor="nextSeq" hint="Restarts at 1 after each Z.">
           <Input id="nextSeq" inputMode="numeric" value={form.nextSeqNumber} onChange={(e) => setField("nextSeqNumber", e.target.value)} />
         </Field>
       </section>

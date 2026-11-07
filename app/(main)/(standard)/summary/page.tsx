@@ -90,7 +90,14 @@ export default function SummaryPage() {
       <div className="print:hidden">
         <FormError message={closeError} />
       </div>
-      <BatchReport kind="x" zNumber={zNumber} storeName={settings.name} totals={totals} date={new Date()} />
+      <BatchReport
+        kind="x"
+        zNumber={zNumber}
+        storeName={settings.name}
+        totals={totals}
+        date={new Date()}
+        grandTotal={settings.grandTotal + totals.net}
+      />
     </div>
   );
 }

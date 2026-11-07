@@ -9,6 +9,7 @@ import { Logo } from "@/components/Logo";
 const navLinks = [
   { href: "/", label: "Register" },
   { href: "/summary", label: "Summary" },
+  { href: "/journal", label: "Journal" },
   { href: "/settings", label: "Settings" },
 ] as const;
 

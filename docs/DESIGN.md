@@ -51,7 +51,8 @@ Used to check our math and report layout.
 Z report: DEPT026 2 × 3,663.98 · DEPT027 1 × 3,369.06 · GROSS 7,033.04 ·
 NET 7,604.53 · CAID (cash in drawer) 7,604.53 · RF 0 · CUST 3 · CANCEL 0 ·
 TA1 7,033.04 / TX1 351.65 · TA2 3,663.98 / TX2 219.84 · GT 10,105,881.28 ·
-Z counter 3599. Receipts, X and Z share one running number (000001 … 000005).
+Z counter 3599. Receipts, X and Z share one running number (000001 … 000005),
+which restarts at 000001 after each Z.
 
 Per-line tax rounding (half up) reproduces every number above exactly.
 
@@ -151,8 +152,9 @@ are listed separately (`RF` count and amount).
 
 ```
 /                Register
-/transactions    Transactions in the open batch, or by date / batch.
-                 Open one → reprint, cancel (open batch only).
+/journal         Journal for a date range: every sale, refund and Z close in
+                 order, with the range's totals on top. Loads at most 1000.
+                 (Later: open one → reprint, cancel.)
 /summary         Open batch live (X), Close Z, print.
 /reports         Z history, day / range summary (later).
 /settings        Store tab: receipt header/footer, starting counters
@@ -187,7 +189,7 @@ Touch targets ≥ 64px. Tax buttons are generated from settings.
 settings/store
   name, address, phone, receiptHeader, receiptFooter
   timezone: "America/Regina"
-  nextSeqNumber: 6             // shared by receipts, X and Z (000001…)
+  nextSeqNumber: 6             // receipts + Z in the open batch; back to 1 after Z
   nextZNumber: 3600            // continues from old register
   grandTotal: 1010588128       // GT in cents, never resets
   openBatchId: string | null  // null until the first sale opens a batch
@@ -212,7 +214,7 @@ batches/{batchId}
   totals: BatchTotals | null   // snapshot written at Z
 
 transactions/{txnId}
-  seq: 6                       // receipt number
+  seq: 6                       // receipt number, restarts at 1 each Z
   type: "sale" | "refund"
   status: "completed" | "cancelled"
   batchId
@@ -287,7 +289,7 @@ Confirm dialog ("Close Z #3600? This can't be undone."), then one
 3. `grandTotalAfter = grandTotal + net`; save both on the totals, plus the Z's
    own receipt number (`zSeq`).
 4. Close the batch (`status`, `closedAt`, `totals`).
-5. Update the store: `grandTotal`, `nextZNumber + 1`, `nextSeqNumber + 1`,
+5. Update the store: `grandTotal`, `nextZNumber + 1`, `nextSeqNumber: 1`,
    `openBatchId: null`. The next sale opens the next batch.
 
 Page: `/summary` shows the open batch live (like DAILY X) with Print and
@@ -398,7 +400,7 @@ app/login/page.tsx
 app/(main)/layout.tsx                    auth redirect + Navbar
 app/(main)/(standard)/page.tsx           register
 app/(main)/(standard)/settings/page.tsx
-app/(main)/(standard)/transactions/page.tsx
+app/(main)/(standard)/journal/page.tsx
 app/(main)/(standard)/reports/page.tsx
 contexts/AuthContext.tsx                 sign-in; starts/stops all store listeners
 stores/                                  one Zustand store per collection

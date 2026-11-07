@@ -4,7 +4,7 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { saleTotals, taxOn } from "./tax.ts";
+import { formatRate, parseRate, saleTotals, taxOn } from "./tax.ts";
 import {
   initialRegisterState,
   reduceRegister,
@@ -38,6 +38,16 @@ test("tax rounds half up per line", () => {
   assert.equal(taxOn(336906, 500), 16845); // 168.453
   assert.equal(taxOn(10, 500), 1); // 0.5 → 1
   assert.equal(taxOn(9, 500), 0); // 0.45 → 0
+});
+
+test("tax rates are typed as percents", () => {
+  assert.equal(parseRate("5"), 500);
+  assert.equal(parseRate("5.5%"), 550);
+  assert.equal(parseRate(" 12.25 "), 1225);
+  assert.equal(parseRate("5.555"), null);
+  assert.equal(parseRate("abc"), null);
+  assert.equal(parseRate(""), null);
+  assert.equal(formatRate(550), "5.5%");
 });
 
 test("reproduces the 09-22-2026 tape", () => {

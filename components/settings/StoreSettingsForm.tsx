@@ -5,6 +5,7 @@ import { useStoreSettingsStore } from "@/stores/storeSettingsStore";
 import { Button } from "@/components/ui/Button";
 import { Field, FormError, Input, Select } from "@/components/ui/form";
 import { formatMoney, parseMoney } from "@/lib/money";
+import { sectionClass } from "@/components/settings/SettingsList";
 
 const CANADA_TIMEZONES = [
   { value: "America/Vancouver", label: "Pacific Time — Vancouver, Victoria" },
@@ -15,8 +16,6 @@ const CANADA_TIMEZONES = [
   { value: "America/Halifax", label: "Atlantic Time — Halifax, Moncton" },
   { value: "America/St_Johns", label: "Newfoundland Time — St. John's" },
 ] as const;
-
-const sectionClass = "space-y-4 rounded-xl border border-foreground/10 p-4 sm:p-6";
 
 /** Store info, time zone and counters. Mounted only once settings have loaded. */
 export function StoreSettingsForm() {

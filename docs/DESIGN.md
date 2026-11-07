@@ -152,9 +152,10 @@ are listed separately (`RF` count and amount).
 /transactions    Transactions in the open batch, or by date / batch.
                  Open one → reprint, cancel (open batch only).
 /reports         X report, Z close, Z history, day / range summary, print.
-/settings        Taxes, tax buttons, receipt header/footer,
-                 starting counters (GT, Z number, receipt number),
-                 auto-print on/off.
+/settings        Store tab: receipt header/footer, starting counters
+                 (GT, Z number, receipt number), auto-print on/off.
+/settings/taxes  Taxes tab: add / edit / reorder / turn off taxes and
+                 tax buttons.
 /login           Firebase Auth sign-in
 ```
 

@@ -52,6 +52,13 @@ export function saleTotals(lines: TransactionLine[]): SaleTotals {
   return { subtotal, taxTotal, total: subtotal + taxTotal, byTax: [...byTax.values()] };
 }
 
+/** "5" → 500, "5.5%" → 550, "12.25" → 1225. Null for anything else (max 2 decimals). */
+export function parseRate(input: string): number | null {
+  const match = /^(\d{1,3})(?:\.(\d{0,2}))?$/.exec(input.replace(/[%\s]/g, ""));
+  if (!match) return null;
+  return Number(match[1]) * 100 + Number((match[2] ?? "").padEnd(2, "0"));
+}
+
 /** 500 → "5%", 1250 → "12.5%" */
 export function formatRate(rateBps: number): string {
   return `${rateBps / 100}%`;

@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { Logo } from "@/components/Logo";
 
 const navLinks = [
   { href: "/", label: "Register" },
@@ -13,35 +13,6 @@ const navLinks = [
 
 function isActivePath(pathname: string, href: string) {
   return pathname === href || (href !== "/" && pathname.startsWith(href));
-}
-
-/** "ASIAN [Vietnam map] LE REGISTER", styled like the website logo. */
-function Logo() {
-  return (
-    <Link
-      href="/"
-      aria-label="Asian Le Register – Home"
-      className="group flex shrink-0 items-center gap-1 rounded-md text-on-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
-    >
-      <span className="text-xl font-extrabold tracking-wide transition group-hover:text-gold">
-        ASIAN
-      </span>
-      <Image
-        src="/logo.png"
-        alt=""
-        width={28}
-        height={40}
-        className="h-10 w-7 object-contain"
-        unoptimized
-      />
-      <span className="text-xl font-extrabold tracking-wide transition group-hover:text-gold">
-        LE
-      </span>
-      <span className="ml-1 text-xs font-bold uppercase tracking-widest text-gold">
-        Register
-      </span>
-    </Link>
-  );
 }
 
 export function Navbar() {
@@ -69,7 +40,7 @@ export function Navbar() {
         aria-label="Main"
         className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-4 py-3 sm:px-6 lg:px-8"
       >
-        <Logo />
+        <Logo href="/" />
 
         {/* Desktop */}
         <div className="hidden items-center gap-6 sm:flex">

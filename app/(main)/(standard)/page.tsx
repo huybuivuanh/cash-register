@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Keypad, type TaxKey } from "@/components/register/Keypad";
 import { SalePanel } from "@/components/register/SalePanel";
 import { useRegister } from "@/components/register/useRegister";
@@ -124,16 +125,24 @@ function NoTaxButtons({ canCreateDefaults }: { canCreateDefaults: boolean }) {
             Start with the old register&apos;s setup: GST 5% and PST 6%, with buttons T1+2 (was DEPT026),
             T1 (was DEPT027) and NO TAX.
           </p>
-          <Button onClick={handleCreate} disabled={busy}>
-            {busy ? "Creating…" : "Create default taxes"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={handleCreate} disabled={busy}>
+              {busy ? "Creating…" : "Create default taxes"}
+            </Button>
+            <Link href="/settings/taxes" className="text-sm underline">
+              or set up your own
+            </Link>
+          </div>
           <FormError message={error} />
         </>
       ) : (
         <p className="text-sm text-foreground/70">
-          Every tax button is turned off (active: false). Turn one back on in the Firestore
-          taxButtons collection. Tax button settings are coming next.
-</p>
+          Every tax button is turned off or none are set up.{" "}
+          <Link href="/settings/taxes" className="underline">
+            Go to Settings → Taxes
+          </Link>{" "}
+          to turn one on.
+        </p>
       )}
     </div>
   );

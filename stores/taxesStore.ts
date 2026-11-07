@@ -5,6 +5,7 @@ import {
   doc,
   onSnapshot,
   updateDoc,
+  writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -19,6 +20,8 @@ interface TaxesState {
   listen: () => Unsubscribe;
   addTax: (tax: TaxInput) => Promise<void>;
   updateTax: (id: string, patch: Partial<TaxInput>) => Promise<void>;
+  /** Saves a new order: the first id gets order 1, the next 2, and so on. */
+  setOrder: (ids: string[]) => Promise<void>;
   /** Clear cache on logout */
   reset: () => void;
 }
@@ -71,6 +74,18 @@ export const useTaxesStore = create<TaxesState>((set) => ({
       await updateDoc(doc(db, "taxes", id), patch);
     } catch (err) {
       set({ error: err instanceof Error ? err.message : "Failed to update tax" });
+      throw err;
+    }
+  },
+
+  setOrder: async (ids) => {
+    set({ error: null });
+    try {
+      const batch = writeBatch(db);
+      ids.forEach((id, i) => batch.update(doc(db, "taxes", id), { order: i + 1 }));
+      await batch.commit();
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : "Failed to reorder taxes" });
       throw err;
     }
   },

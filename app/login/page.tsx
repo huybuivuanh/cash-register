@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { Logo } from "@/components/Logo";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -46,11 +47,11 @@ export default function LoginPage() {
   return (
     <div className="min-h-[100dvh] min-h-screen flex items-center justify-center p-4 py-6 sm:py-8">
       <div className="w-full max-w-sm min-w-0 space-y-6">
-        <div className="text-center px-1">
-          <h1 className="text-xl sm:text-2xl font-semibold text-foreground">
-            Asian Le Cash Register
+        <div className="text-center">
+          <h1 className="flex justify-center rounded-2xl bg-ink px-4 py-6">
+            <Logo large />
           </h1>
-          <p className="mt-1 text-sm text-foreground/60">Sign in to continue</p>
+          <p className="mt-3 text-sm text-foreground/60">Sign in to continue</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

@@ -71,3 +71,55 @@ export async function createDefaultTaxes(): Promise<void> {
   batch.set(doc(db, "taxButtons", "notax"), { label: "NO TAX", taxIds: [], order: 3, active: true });
   await batch.commit();
 }
+
+export type ClosedZ = { zNumber: number; closedAt: Date; totals: BatchTotals };
+
+/**
+ * Closes the open batch (the Z), all in one Firestore transaction:
+ * saves the totals with the GT before/after, adds NET to the GT, gives the Z
+ * the next receipt number and moves on to the next Z number. The next sale
+ * opens the new batch.
+ *
+ * `totals` come from the transactions on screen. `seenNextSeq` is the next
+ * receipt number when they were worked out; if a sale was saved since then,
+ * this refuses so the Z never misses it.
+ */
+export async function closeBatch(batchId: string, totals: BatchTotals, seenNextSeq: number): Promise<ClosedZ> {
+  const settingsRef = doc(db, "settings", "store");
+  const batchRef = doc(db, "batches", batchId);
+
+  return runTransaction(db, async (tx) => {
+    const settingsSnap = await tx.get(settingsRef);
+    const batchSnap = await tx.get(batchRef);
+    const settings = { ...STORE_SETTINGS_DEFAULTS, ...settingsSnap.data() } as StoreSettings;
+    const batch = batchSnap.data();
+
+    if (settings.openBatchId !== batchId || batch?.status !== "open") {
+      throw new Error("This Z has already been closed.");
+    }
+    if (settings.nextSeqNumber !== seenNextSeq) {
+      throw new Error("A sale was saved while closing. Check the totals and close the Z again.");
+    }
+
+    const zNumber = batch.zNumber as number;
+    const saved: BatchTotals = {
+      ...totals,
+      zSeq: settings.nextSeqNumber,
+      grandTotalBefore: settings.grandTotal,
+      grandTotalAfter: settings.grandTotal + totals.net,
+    };
+
+    tx.update(batchRef, { status: "closed", closedAt: serverTimestamp(), totals: saved });
+    tx.set(
+      settingsRef,
+      {
+        grandTotal: saved.grandTotalAfter,
+        nextZNumber: zNumber + 1,
+        nextSeqNumber: settings.nextSeqNumber + 1,
+        openBatchId: null,
+      },
+      { merge: true },
+    );
+    return { zNumber, closedAt: new Date(), totals: saved };
+  });
+}

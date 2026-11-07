@@ -88,6 +88,39 @@ declare global {
     status: "open" | "closed";
     openedAt: Date;
     closedAt: Date | null;
+    /** Saved when the Z is closed. */
+    totals: BatchTotals | null;
+  }
+
+  /** Taxable amount and tax per tax (TA1/TX1, TA2/TX2). Refunds subtract. */
+  interface TaxSummary {
+    taxId: string;
+    name: string;
+    rateBps: number;
+    taxable: number;
+    tax: number;
+  }
+
+  /** Totals for an X or Z report. Cancelled sales are only counted under cancel. */
+  interface BatchTotals {
+    /** Sales before tax, minus refunds (GROSS). */
+    gross: number;
+    byTax: TaxSummary[];
+    /** Including tax, minus refunds (NET). */
+    net: number;
+    /** Completed sales, not refunds (CUST). */
+    saleCount: number;
+    refundCount: number;
+    refundTotal: number;
+    cancelCount: number;
+    cancelTotal: number;
+    /** First and last receipt number in the batch, 0 when empty. */
+    firstSeq: number;
+    lastSeq: number;
+    /** Z only: the Z's own number in the receipt sequence, and the GT before and after. */
+    zSeq?: number;
+    grandTotalBefore?: number;
+    grandTotalAfter?: number;
   }
 }
 

@@ -4,7 +4,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { AppModal } from "@/components/AppModal";
 
 export const metadata: Metadata = {
-  title: "Cash Register",
+  title: "Asian Le Cash Register",
 };
 
 export const viewport: Viewport = {

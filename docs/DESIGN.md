@@ -5,7 +5,8 @@ day-to-day functions: ring up sales, apply tax, take cash, give change, refund,
 print receipts, and run X / Z reports.
 
 Stack: Next.js (App Router) + Tailwind, Firebase Auth, Cloud Firestore.
-One register device. Cash only.
+One register device. Customers pay cash or card; the register doesn't record
+which (cash tendered is only used to work out change).
 
 ---
 
@@ -93,8 +94,9 @@ list of taxes it applies (zero, one or several).
 The owner can add, rename, reorder, hide buttons and change rates. Changing a
 rate affects new sales only.
 
-Reports show both: sales per **button** (like the DEPT section) and taxable
-amount + tax per **tax** (like TA1/TX1, TA2/TX2).
+Reports show taxable amount + tax per **tax** (like TA1/TX1, TA2/TX2). The
+old tape's per-button DEPT section is left out: it mostly repeated the tax
+section and was confusing.
 
 ---
 
@@ -140,7 +142,7 @@ are listed separately (`RF` count and amount).
   show change; tendered < total = error, nothing saved.
 - **Save fails** (no internet etc.): error shown, sale stays on screen, press
   ENTER again.
-- **Physical keyboard / numpad:** digits, `Enter`, `Backspace` (CLR), `+`
+- **Physical keyboard / numpad:** digits, `Enter`, `Backspace` (CLR), `Shift`
   (SUBTOTAL), `F1`–`F6` (tax buttons in order), `Esc` (cancel sale).
 
 ---
@@ -151,7 +153,8 @@ are listed separately (`RF` count and amount).
 /                Register
 /transactions    Transactions in the open batch, or by date / batch.
                  Open one → reprint, cancel (open batch only).
-/reports         X report, Z close, Z history, day / range summary, print.
+/summary         Open batch live (X), Close Z, print.
+/reports         Z history, day / range summary (later).
 /settings        Store tab: receipt header/footer, starting counters
                  (GT, Z number, receipt number), auto-print on/off.
 /settings/taxes  Taxes tab: add / edit / reorder / turn off taxes and
@@ -234,11 +237,9 @@ All amounts are stored positive; `type` decides whether they add or subtract.
 ### `BatchTotals` (also used for X and day/range summaries)
 ```ts
 {
-  byButton: { buttonId, label, count, amount }[];      // DEPT section, net of refunds
   gross: number;               // sales before tax, net of refunds  (GROSS / TL)
   byTax: { taxId, name, rateBps, taxable, tax }[];     // TA1/TX1, TA2/TX2
   net: number;                 // incl. tax, minus refunds          (NET)
-  cashInDrawer: number;        // = net, cash only                  (CAID)
   saleCount: number;           // customer count                    (CUST CT)
   refundCount: number; refundTotal: number;                       // (RF)
   cancelCount: number; cancelTotal: number;                       // (CANCEL)
@@ -280,11 +281,17 @@ Read transactions of the open batch, compute `BatchTotals`, print with header
 ### Z report
 Confirm dialog ("Close Z #3600? This can't be undone."), then one
 `runTransaction`:
-1. Compute `BatchTotals` for the open batch.
-2. `grandTotalAfter = grandTotal + net`; save both on the totals.
-3. Close the batch (`status`, `closedAt`, `totals`).
-4. Open the next batch, `zNumber + 1`.
-5. Update the store: `grandTotal`, `nextZNumber`, `nextSeqNumber`, `openBatchId`.
+1. Compute `BatchTotals` for the open batch (`lib/reports.ts`).
+2. Refuse if a sale was saved since the totals were worked out
+   (`nextSeqNumber` changed).
+3. `grandTotalAfter = grandTotal + net`; save both on the totals, plus the Z's
+   own receipt number (`zSeq`).
+4. Close the batch (`status`, `closedAt`, `totals`).
+5. Update the store: `grandTotal`, `nextZNumber + 1`, `nextSeqNumber + 1`,
+   `openBatchId: null`. The next sale opens the next batch.
+
+Page: `/summary` shows the open batch live (like DAILY X) with Print and
+Close Z. A batch with no sales can't be closed.
 
 Then print `DAILY Z`.
 
@@ -325,27 +332,26 @@ Refund receipts show `*** REFUND ***` and `CASH OUT` instead of CASH/CHANGE.
 
 ### Z report (X is identical, titled DAILY X, no GT)
 ```
-DAILY Z  #3600
+      MY RESTAURANT
+    DAILY Z · Z #3600
 #000005       09-22-2026 20:41
 --------------------------------
-BUTTONS
-T1+2               2  3,663.98
-T1                 1  3,369.06
-TOTAL              3  7,033.04
---------------------------------
-GROSS              3  7,033.04
-REFUND             0      0.00
-CANCEL             0      0.00
-NET                3  7,604.53
-CASH IN DRAWER        7,604.53
+GROSS (before tax) 3  7,033.04
+REFUNDS            0      0.00
+CANCELLED          0      0.00
 --------------------------------
 TAX       TAXABLE          TAX
 TX1 5%    7,033.04      351.65
 TX2 6%    3,663.98      219.84
+TAX TOTAL                571.49
 --------------------------------
-GT      10,113,485.81
-RECEIPTS  #000001 - #000004
+NET (with tax)        7,604.53
+--------------------------------
+GT                10,113,485.81
+RECEIPTS  #000001 – #000004
 ```
+No cash-in-drawer line: customers also pay by card, and the register doesn't
+record how each sale was paid.
 (Example GT: 10,105,881.28 + 7,604.53.)
 
 ---

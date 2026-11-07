@@ -22,8 +22,6 @@ export function lineTaxes(
   }));
 }
 
-export type TaxSummary = { taxId: string; name: string; rateBps: number; taxable: number; tax: number };
-
 export type SaleTotals = {
   subtotal: number;
   taxTotal: number;

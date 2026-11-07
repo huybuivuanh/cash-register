@@ -160,7 +160,7 @@ export function Keypad({
         )}
 
         <div className="grid grid-cols-2 gap-2">
-          <Key tone="func" className="text-base" onPress={() => press({ type: "subtotal" })} title="+">
+          <Key tone="func" className="text-base" onPress={() => press({ type: "subtotal" })} title="Shift">
             SUBTOTAL
           </Key>
           <Key tone="enter" onPress={() => press({ type: "enter" })} title="Enter">

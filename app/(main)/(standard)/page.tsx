@@ -26,7 +26,7 @@ function keyToAction(e: KeyboardEvent, taxKeys: TaxKey[]): RegisterAction | null
     case "Backspace":
     case "Delete":
       return { type: "clear" };
-    case "+":
+    case "Shift":
       return { type: "subtotal" };
     case "Escape":
       return { type: "cancelSale" };

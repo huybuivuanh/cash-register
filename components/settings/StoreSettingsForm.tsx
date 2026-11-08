@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useStoreSettingsStore } from "@/stores/storeSettingsStore";
 import { Button } from "@/components/ui/Button";
-import { Field, FormError, Input, Select } from "@/components/ui/form";
-import { formatMoney, parseMoney } from "@/lib/money";
-import { storeInfoError } from "@/lib/setup";
+import { Field, FormError, Input, inputClass, Select } from "@/components/ui/form";
+import { formatMoney, formatSeq } from "@/lib/money";
+import { cleanStoreInfo, storeInfoError, type StoreInfo } from "@/lib/setup";
 import { sectionClass } from "@/components/settings/SettingsList";
 import { ViewOnlyNote } from "@/components/ViewOnlyNote";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,204 +13,251 @@ import { useAuth } from "@/contexts/AuthContext";
 const CANADA_TIMEZONES = [
   { value: "America/Vancouver", label: "Pacific Time — Vancouver, Victoria" },
   { value: "America/Edmonton", label: "Mountain Time — Edmonton, Calgary" },
-  {
-    value: "America/Regina",
-    label: "Central Time (no DST) — Regina, Saskatoon",
-  },
+  { value: "America/Regina", label: "Central Time (no DST) — Regina, Saskatoon" },
   { value: "America/Winnipeg", label: "Central Time — Winnipeg" },
   { value: "America/Toronto", label: "Eastern Time — Toronto, Ottawa" },
   { value: "America/Halifax", label: "Atlantic Time — Halifax, Moncton" },
   { value: "America/St_Johns", label: "Newfoundland Time — St. John's" },
 ] as const;
 
-/** Store info, time zone and counters. Mounted only once settings have loaded. */
-export function StoreSettingsForm() {
-  const settings = useStoreSettingsStore((s) => s.settings);
-  if (!settings) return null;
-  // Keyed so the form resets if the settings change from elsewhere.
-  return <SettingsFields key={JSON.stringify(settings)} settings={settings} />;
+function errorText(err: unknown) {
+  return err instanceof Error && err.message ? err.message : "Couldn't save. Please try again.";
 }
 
-function SettingsFields({ settings }: { settings: StoreSettings }) {
-  const updateSettings = useStoreSettingsStore((s) => s.updateSettings);
+/** Store info, time zone and counters, each shown as a card. Mounted once settings have loaded. */
+export function StoreSettingsForm() {
+  const settings = useStoreSettingsStore((s) => s.settings);
   const { isAdmin } = useAuth();
-  const [form, setForm] = useState({
-    name: settings.name,
-    address: settings.address,
-    phone: settings.phone,
-    receiptHeader: settings.receiptHeader,
-    receiptFooter: settings.receiptFooter,
-    timezone: settings.timezone,
-    nextZNumber: String(settings.nextZNumber),
-    grandTotal: formatMoney(settings.grandTotal),
-    nextSeqNumber: String(settings.nextSeqNumber),
-  });
+  if (!settings) return null;
+
+  return (
+    <div className="space-y-6">
+      {!isAdmin && <ViewOnlyNote />}
+      <StoreInfoCard settings={settings} canEdit={isAdmin} />
+      <TimeZoneCard settings={settings} canEdit={isAdmin} />
+      <CountersCard settings={settings} />
+    </div>
+  );
+}
+
+/**
+ * Card that looks the same while viewing and editing: the same labels and
+ * boxes, with Edit swapped for Cancel + Save in the top-right corner.
+ */
+function Card({
+  title,
+  description,
+  canEdit = false,
+  editing = false,
+  saving = false,
+  error = null,
+  onEdit,
+  onCancel,
+  onSave,
+  children,
+}: {
+  title: string;
+  description?: string;
+  canEdit?: boolean;
+  editing?: boolean;
+  saving?: boolean;
+  error?: string | null;
+  /** Leave out for cards that can't be edited (e.g. counters). */
+  onEdit?: () => void;
+  onCancel?: () => void;
+  onSave?: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <form
+      className={sectionClass}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (editing) onSave?.();
+      }}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">{title}</h2>
+          {description && <p className="text-sm text-foreground/60">{description}</p>}
+        </div>
+        {onEdit &&
+          (editing ? (
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={onCancel} disabled={saving}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? "Saving…" : "Save"}
+              </Button>
+            </div>
+          ) : (
+            <Button variant="secondary" onClick={onEdit} disabled={!canEdit}>
+              Edit
+            </Button>
+          ))}
+      </div>
+      <FormError message={error} />
+      {children}
+    </form>
+  );
+}
+
+/** A value shown in a box the same size as an input, so view and edit line up. */
+function ValueBox({ value }: { value: string }) {
+  return (
+    <div className={`${inputClass} min-h-[2.625rem] break-words bg-foreground/[0.03] ${value ? "" : "text-foreground/40"}`}>
+      {value || "—"}
+    </div>
+  );
+}
+
+const STORE_FIELDS: { key: keyof StoreInfo; label: string; required?: boolean; type?: string }[] = [
+  { key: "name", label: "Restaurant name", required: true },
+  { key: "address", label: "Address", required: true },
+  { key: "phone", label: "Phone", required: true, type: "tel" },
+  { key: "receiptHeader", label: "Receipt header (optional, e.g. GST number)" },
+  { key: "receiptFooter", label: "Receipt footer (optional)" },
+];
+
+function StoreInfoCard({ settings, canEdit }: { settings: StoreSettings; canEdit: boolean }) {
+  const updateSettings = useStoreSettingsStore((s) => s.updateSettings);
+  /** The form while editing; null while viewing. */
+  const [draft, setDraft] = useState<StoreInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
 
-  function setField(key: keyof typeof form, value: string) {
-    setForm((f) => ({ ...f, [key]: value }));
-    setSaved(false);
+  function startEditing() {
+    const { name, address, phone, receiptHeader, receiptFooter } = settings;
+    setDraft({ name, address, phone, receiptHeader, receiptFooter });
+    setError(null);
   }
 
-  async function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-
-    const missing = storeInfoError(form);
+  async function handleSave() {
+    if (!draft) return;
+    const missing = storeInfoError(draft);
     if (missing) return setError(missing);
-    const nextZNumber = Number(form.nextZNumber);
-    const grandTotal = parseMoney(form.grandTotal);
-    const nextSeqNumber = Number(form.nextSeqNumber);
-    if (!Number.isInteger(nextZNumber) || nextZNumber < 1)
-      return setError("Next Z number must be a whole number, 1 or more.");
-    if (grandTotal === null)
-      return setError("Grand total must be an amount like 10,105,881.28.");
-    if (!Number.isInteger(nextSeqNumber) || nextSeqNumber < 1)
-      return setError("Next receipt number must be a whole number, 1 or more.");
-
     setSaving(true);
+    setError(null);
     try {
-      await updateSettings({
-        name: form.name.trim(),
-        address: form.address.trim(),
-        phone: form.phone.trim(),
-        receiptHeader: form.receiptHeader.trim(),
-        receiptFooter: form.receiptFooter.trim(),
-        timezone: form.timezone,
-        nextZNumber,
-        grandTotal,
-        nextSeqNumber,
-      });
-      setSaved(true);
+      await updateSettings(cleanStoreInfo(draft));
+      setDraft(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save settings.");
+      setError(errorText(err));
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {!isAdmin && <ViewOnlyNote />}
-      <fieldset disabled={!isAdmin} className="space-y-6">
-        <section className={sectionClass}>
-          <h2 className="text-lg font-semibold">Store info</h2>
-          <p className="text-sm text-foreground/60">
-            Printed at the top and bottom of receipts.
-          </p>
-          <Field label="Business name" htmlFor="name" required>
-            <Input
-              id="name"
-              value={form.name}
-              onChange={(e) => setField("name", e.target.value)}
-            />
+    <Card
+      title="Store info"
+      description="Printed at the top and bottom of receipts."
+      canEdit={canEdit}
+      editing={!!draft}
+      saving={saving}
+      error={error}
+      onEdit={startEditing}
+      onCancel={() => {
+        setDraft(null);
+        setError(null);
+      }}
+      onSave={handleSave}
+    >
+      <div className="space-y-4">
+        {STORE_FIELDS.map(({ key, label, required, type }, i) => (
+          <Field key={key} label={label} htmlFor={key} required={required}>
+            {draft ? (
+              <Input
+                id={key}
+                type={type}
+                value={draft[key]}
+                autoFocus={i === 0}
+                onChange={(e) => setDraft((d) => (d ? { ...d, [key]: e.target.value } : d))}
+              />
+            ) : (
+              <ValueBox value={settings[key]} />
+            )}
           </Field>
-          <Field label="Address" htmlFor="address" required>
-            <Input
-              id="address"
-              value={form.address}
-              onChange={(e) => setField("address", e.target.value)}
-            />
-          </Field>
-          <Field label="Phone" htmlFor="phone" required>
-            <Input
-              id="phone"
-              value={form.phone}
-              onChange={(e) => setField("phone", e.target.value)}
-            />
-          </Field>
-          <Field
-            label="Receipt header"
-            htmlFor="receiptHeader"
-            hint="Extra line under the name, e.g. GST number."
-          >
-            <Input
-              id="receiptHeader"
-              value={form.receiptHeader}
-              onChange={(e) => setField("receiptHeader", e.target.value)}
-            />
-          </Field>
-          <Field label="Receipt footer" htmlFor="receiptFooter">
-            <Input
-              id="receiptFooter"
-              value={form.receiptFooter}
-              onChange={(e) => setField("receiptFooter", e.target.value)}
-            />
-          </Field>
-        </section>
-
-        <section className={sectionClass}>
-          <h2 className="text-lg font-semibold">Time zone</h2>
-          <Field label="Timezone" htmlFor="timezone">
-            <Select
-              id="timezone"
-              value={form.timezone}
-              onChange={(e) => setField("timezone", e.target.value)}
-            >
-              {CANADA_TIMEZONES.map((tz) => (
-                <option key={tz.value} value={tz.value}>
-                  {tz.label}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </section>
-
-        <section className={sectionClass}>
-          <h2 className="text-lg font-semibold">Counters</h2>
-          <p className="text-sm text-foreground/60">
-            Set these once when switching from the old register, from its last Z
-            tape. After that the register updates them on its own — only change
-            them to fix a mistake.
-          </p>
-          <Field
-            label="Next Z number"
-            htmlFor="nextZ"
-            hint="Last Z on the old register + 1, e.g. 3600."
-          >
-            <Input
-              id="nextZ"
-              inputMode="numeric"
-              value={form.nextZNumber}
-              onChange={(e) => setField("nextZNumber", e.target.value)}
-            />
-          </Field>
-          <Field
-            label="Grand total (GT)"
-            htmlFor="gt"
-            hint="GT printed on the old register's last Z."
-          >
-            <Input
-              id="gt"
-              inputMode="decimal"
-              value={form.grandTotal}
-              onChange={(e) => setField("grandTotal", e.target.value)}
-            />
-          </Field>
-          <Field
-            label="Next receipt number"
-            htmlFor="nextSeq"
-            hint="Restarts at 1 after each Z."
-          >
-            <Input
-              id="nextSeq"
-              inputMode="numeric"
-              value={form.nextSeqNumber}
-              onChange={(e) => setField("nextSeqNumber", e.target.value)}
-            />
-          </Field>
-        </section>
-      </fieldset>
-
-      <FormError message={error} />
-      <div className="flex items-center justify-end gap-3">
-        {saved && <span className="text-sm text-green-700">Saved</span>}
-        <Button type="submit" disabled={saving || !isAdmin}>
-          {saving ? "Saving…" : "Save settings"}
-        </Button>
+        ))}
       </div>
-    </form>
+    </Card>
+  );
+}
+
+function TimeZoneCard({ settings, canEdit }: { settings: StoreSettings; canEdit: boolean }) {
+  const updateSettings = useStoreSettingsStore((s) => s.updateSettings);
+  const [draft, setDraft] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const label = CANADA_TIMEZONES.find((tz) => tz.value === settings.timezone)?.label ?? settings.timezone;
+
+  async function handleSave() {
+    if (draft === null) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await updateSettings({ timezone: draft });
+      setDraft(null);
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card
+      title="Time zone"
+      canEdit={canEdit}
+      editing={draft !== null}
+      saving={saving}
+      error={error}
+      onEdit={() => {
+        setDraft(settings.timezone);
+        setError(null);
+      }}
+      onCancel={() => {
+        setDraft(null);
+        setError(null);
+      }}
+      onSave={handleSave}
+    >
+      <Field label="Time zone" htmlFor="timezone">
+        {draft !== null ? (
+          <Select id="timezone" value={draft} autoFocus onChange={(e) => setDraft(e.target.value)}>
+            {CANADA_TIMEZONES.map((tz) => (
+              <option key={tz.value} value={tz.value}>
+                {tz.label}
+              </option>
+            ))}
+          </Select>
+        ) : (
+          <ValueBox value={label} />
+        )}
+      </Field>
+    </Card>
+  );
+}
+
+/** Counters are never edited by hand: only sales and Z closes change them. */
+function CountersCard({ settings }: { settings: StoreSettings }) {
+  return (
+    <Card
+      title="Counters"
+      description="Updated automatically by sales and Z closes. They can't be changed by hand, like on a real register."
+    >
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Field label="Current Z number">
+          <ValueBox value={String(settings.nextZNumber)} />
+        </Field>
+        <Field label="Grand total (GT)">
+          <ValueBox value={formatMoney(settings.grandTotal)} />
+        </Field>
+        <Field label="Next receipt number">
+          <ValueBox value={formatSeq(settings.nextSeqNumber)} />
+        </Field>
+      </div>
+    </Card>
   );
 }

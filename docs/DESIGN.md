@@ -68,8 +68,9 @@ Per-line tax rounding (half up) reproduces every number above exactly.
    fixed with a refund, which is its own transaction.
 5. **Every transaction belongs to a batch.** Exactly one batch is open. Z
    closes it and opens the next.
-6. **Grand total (GT) never resets.** It is carried from Z to Z, starting from
-   the old register's GT so the numbers continue.
+6. **Counters are never edited by hand.** A new business starts at Z #1,
+   GT 0.00 and receipt #000001. The GT only grows (each Z adds its NET), the Z
+   number goes up one per Z, and the receipt number restarts at 1 after each Z.
 
 ---
 
@@ -156,8 +157,9 @@ are listed separately (`RF` count and amount).
                  (Later: open one → reprint.)
 /summary         Open batch live (X), Close Z, print.
 /reports         Z history, day / range summary (later).
-/settings        Store tab: receipt header/footer, starting counters
-                 (GT, Z number, receipt number), auto-print on/off.
+/settings        Store tab: store info, receipt header/footer, auto-print
+                 on/off. Counters (Z number, GT, receipt number) are shown
+                 but can't be edited: only sales and Z closes change them.
 /settings/taxes  Taxes tab: add / edit / reorder / turn off taxes and
                  tax buttons.
 /login           Firebase Auth sign-in
@@ -199,7 +201,7 @@ businesses/{businessId}        // the business's settings live on this doc
   name, address, phone, receiptHeader, receiptFooter
   timezone: "America/Regina"
   nextSeqNumber: 6             // receipts + Z in the open batch; back to 1 after Z
-  nextZNumber: 3600            // continues from old register
+  nextZNumber: 3600            // Z number of the open batch; +1 at each Z
   grandTotal: 1010588128       // GT in cents, never resets
   openBatchId: string | null  // null until the first sale opens a batch
   autoPrint: boolean

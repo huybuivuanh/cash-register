@@ -67,3 +67,4 @@ export function OffBadge() {
     <span className="ml-2 rounded-full bg-foreground/10 px-2 py-0.5 text-xs font-medium text-foreground/70">Off</span>
   );
 }
+

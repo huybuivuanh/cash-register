@@ -2,6 +2,14 @@
 // Money is always integer cents; tax rates are basis points (5% = 500).
 
 declare global {
+  type MemberRole = "staff" | "admin";
+
+  /** members/{uid} — links a login to its one business. */
+  interface Member {
+    businessId: string;
+    role: MemberRole;
+  }
+
   /** settings/store — store info and running counters. */
   interface StoreSettings {
     name: string;

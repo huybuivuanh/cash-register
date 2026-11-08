@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField, Field, FormActions, FormError, Input } from "@/components/ui/form";
 import { Modal } from "@/components/ui/Modal";
@@ -22,6 +23,7 @@ export function TaxButtonsEditor() {
   const taxes = useTaxesStore((s) => s.taxes);
   const [editing, setEditing] = useState<TaxButton | "new" | null>(null);
   const [busy, setBusy] = useState(false);
+  const { isAdmin } = useAuth();
 
   const taxById = new Map(taxes.map((t) => [t.id, t]));
   const activeIds = taxButtons.filter((b) => b.active).map((b) => b.id);
@@ -47,7 +49,9 @@ export function TaxButtonsEditor() {
             The keys on the register, in this order. Each one charges the taxes you pick.
           </p>
         </div>
-        <Button onClick={() => setEditing("new")}>Add button</Button>
+        <Button onClick={() => setEditing("new")} disabled={!isAdmin}>
+          Add button
+        </Button>
       </div>
 
       {taxButtons.length === 0 ? (
@@ -63,7 +67,7 @@ export function TaxButtonsEditor() {
                 active={button.active}
                 first={i === 0}
                 last={i === taxButtons.length - 1}
-                disabled={busy}
+                disabled={busy || !isAdmin}
                 onMove={(dir) => run(() => setOrder(moveId(taxButtons.map((b) => b.id), i, dir)))}
                 onEdit={() => setEditing(button)}
                 onToggle={() => run(() => updateTaxButton(button.id, { active: !button.active }))}

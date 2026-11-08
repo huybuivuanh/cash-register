@@ -1,5 +1,4 @@
 import {
-  collection,
   doc,
   getDocs,
   limit,
@@ -8,10 +7,10 @@ import {
   runTransaction,
   serverTimestamp,
   where,
-  writeBatch,
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { bizCollection, bizDoc, businessDoc } from "@/lib/business";
 import { saleTotals } from "@/lib/tax";
 import { STORE_SETTINGS_DEFAULTS } from "@/stores/storeSettingsStore";
 
@@ -29,7 +28,7 @@ type NewTransaction = {
  * register then keeps the sale on screen so ENTER can be pressed again.
  */
 export async function saveTransaction(input: NewTransaction): Promise<{ id: string; seq: number }> {
-  const settingsRef = doc(db, "settings", "store");
+  const settingsRef = businessDoc();
 
   return runTransaction(db, async (tx) => {
     const snap = await tx.get(settingsRef);
@@ -38,7 +37,7 @@ export async function saveTransaction(input: NewTransaction): Promise<{ id: stri
 
     let batchId = settings.openBatchId;
     if (!batchId) {
-      const batchRef = doc(collection(db, "batches"));
+      const batchRef = doc(bizCollection("batches"));
       tx.set(batchRef, {
         zNumber: settings.nextZNumber,
         status: "open",
@@ -50,7 +49,7 @@ export async function saveTransaction(input: NewTransaction): Promise<{ id: stri
     }
 
     const { subtotal, taxTotal, total } = saleTotals(input.lines);
-    const txnRef = doc(collection(db, "transactions"));
+    const txnRef = doc(bizCollection("transactions"));
     tx.set(txnRef, {
       seq,
       type: input.type,
@@ -69,20 +68,6 @@ export async function saveTransaction(input: NewTransaction): Promise<{ id: stri
   });
 }
 
-/**
- * First-time setup: GST 5% + PST 6%, and the old register's buttons
- * (DEPT026 → T1+2, DEPT027 → T1) plus NO TAX. Only for an empty database.
- */
-export async function createDefaultTaxes(): Promise<void> {
-  const batch = writeBatch(db);
-  batch.set(doc(db, "taxes", "tax1"), { name: "TX1", label: "GST", rateBps: 500, order: 1, active: true });
-  batch.set(doc(db, "taxes", "tax2"), { name: "TX2", label: "PST", rateBps: 600, order: 2, active: true });
-  batch.set(doc(db, "taxButtons", "t12"), { label: "T1+2", taxIds: ["tax1", "tax2"], order: 1, active: true });
-  batch.set(doc(db, "taxButtons", "t1"), { label: "T1", taxIds: ["tax1"], order: 2, active: true });
-  batch.set(doc(db, "taxButtons", "notax"), { label: "NO TAX", taxIds: [], order: 3, active: true });
-  await batch.commit();
-}
-
 export type ClosedZ = { zNumber: number; closedAt: Date; totals: ZTotals };
 
 /**
@@ -97,8 +82,8 @@ export type ClosedZ = { zNumber: number; closedAt: Date; totals: ZTotals };
  * this refuses so the Z never misses it.
  */
 export async function closeBatch(batchId: string, totals: BatchTotals, seenNextSeq: number): Promise<ClosedZ> {
-  const settingsRef = doc(db, "settings", "store");
-  const batchRef = doc(db, "batches", batchId);
+  const settingsRef = businessDoc();
+  const batchRef = bizDoc("batches", batchId);
 
   return runTransaction(db, async (tx) => {
     const settingsSnap = await tx.get(settingsRef);
@@ -176,7 +161,7 @@ export async function loadJournal(start: Date, end: Date, max: number): Promise<
   const [txnSnap, batchSnap] = await Promise.all([
     getDocs(
       query(
-        collection(db, "transactions"),
+        bizCollection("transactions"),
         where("createdAt", ">=", start),
         where("createdAt", "<", end),
         orderBy("createdAt"),
@@ -184,7 +169,7 @@ export async function loadJournal(start: Date, end: Date, max: number): Promise<
       ),
     ),
     getDocs(
-      query(collection(db, "batches"), where("closedAt", ">=", start), where("closedAt", "<", end), orderBy("closedAt")),
+      query(bizCollection("batches"), where("closedAt", ">=", start), where("closedAt", "<", end), orderBy("closedAt")),
     ),
   ]);
   const transactions = txnSnap.docs.slice(0, max).map((d) => toTransaction(d.id, d.data()));

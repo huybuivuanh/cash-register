@@ -10,10 +10,13 @@ import { computeBatchTotals } from "@/lib/reports";
 import { closeBatch, type ClosedZ } from "@/lib/transactions";
 import { confirmDialog } from "@/stores/modalStore";
 import { useStoreSettingsStore } from "@/stores/storeSettingsStore";
+import { useAuth } from "@/contexts/AuthContext";
+import { ViewOnlyNote } from "@/components/ViewOnlyNote";
 
 /** Live totals for the open batch (like DAILY X), with Print and Close Z. */
 export default function SummaryPage() {
   const { settings, error: settingsError } = useStoreSettingsStore();
+  const { isAdmin } = useAuth();
   const batchId = settings?.openBatchId ?? null;
   const { transactions, openedAt, loading, error } = useBatchTransactions(batchId);
   const totals = useMemo(() => computeBatchTotals(transactions), [transactions]);
@@ -82,11 +85,12 @@ export default function SummaryPage() {
           <Button variant="secondary" onClick={() => window.print()}>
             Print
           </Button>
-          <Button onClick={handleClose} disabled={!hasSales || closing}>
+          <Button onClick={handleClose} disabled={!isAdmin || !hasSales || closing}>
             {closing ? "Closing…" : `Close Z #${zNumber}`}
           </Button>
         </div>
       </div>
+      {!isAdmin && <ViewOnlyNote />}
       <div className="print:hidden">
         <FormError message={closeError} />
       </div>

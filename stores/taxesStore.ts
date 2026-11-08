@@ -1,14 +1,13 @@
 import { create } from "zustand";
 import {
   addDoc,
-  collection,
-  doc,
   onSnapshot,
   updateDoc,
   writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { bizCollection, bizDoc } from "@/lib/business";
 
 type TaxInput = Omit<Tax, "id">;
 
@@ -38,7 +37,7 @@ export const useTaxesStore = create<TaxesState>((set) => ({
   listen: () => {
     set({ loading: true, error: null });
     return onSnapshot(
-      collection(db, "taxes"),
+      bizCollection("taxes"),
       (snapshot) => {
         const taxes: Tax[] = snapshot.docs.map((d) => {
           const data = d.data();
@@ -61,7 +60,7 @@ export const useTaxesStore = create<TaxesState>((set) => ({
   addTax: async (tax) => {
     set({ error: null });
     try {
-      await addDoc(collection(db, "taxes"), tax);
+      await addDoc(bizCollection("taxes"), tax);
     } catch (err) {
       set({ error: err instanceof Error ? err.message : "Failed to add tax" });
       throw err;
@@ -71,7 +70,7 @@ export const useTaxesStore = create<TaxesState>((set) => ({
   updateTax: async (id, patch) => {
     set({ error: null });
     try {
-      await updateDoc(doc(db, "taxes", id), patch);
+      await updateDoc(bizDoc("taxes", id), patch);
     } catch (err) {
       set({ error: err instanceof Error ? err.message : "Failed to update tax" });
       throw err;
@@ -82,7 +81,7 @@ export const useTaxesStore = create<TaxesState>((set) => ({
     set({ error: null });
     try {
       const batch = writeBatch(db);
-      ids.forEach((id, i) => batch.update(doc(db, "taxes", id), { order: i + 1 }));
+      ids.forEach((id, i) => batch.update(bizDoc("taxes", id), { order: i + 1 }));
       await batch.commit();
     } catch (err) {
       set({ error: err instanceof Error ? err.message : "Failed to reorder taxes" });

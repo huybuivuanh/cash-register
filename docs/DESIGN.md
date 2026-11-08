@@ -184,8 +184,18 @@ Touch targets ≥ 64px. Tax buttons are generated from settings.
 
 ## 7. Firestore data model
 
+Several separate businesses share one Firebase project. Each staff login
+belongs to exactly one business, and every collection below lives under that
+business: its settings are fields on `businesses/{businessId}` itself, and
+`businesses/{businessId}/taxes/...` and so on hold the rest (`lib/business.ts` builds the
+paths).
+
 ```
-settings/store
+members/{uid}                  // one per login
+  businessId: "<founder's uid>"
+  role: "admin" | "staff"      // sign-up makes you admin of your own business
+
+businesses/{businessId}        // the business's settings live on this doc
   name, address, phone, receiptHeader, receiptFooter
   timezone: "America/Regina"
   nextSeqNumber: 6             // receipts + Z in the open batch; back to 1 after Z
@@ -245,7 +255,7 @@ All amounts are stored positive; `type` decides whether they add or subtract.
 ```
 A closed Z saves `ZTotals` = `BatchTotals` plus `zSeq` (the Z's own receipt
 number) and `grandTotalAfter` (GT right after this Z). The running GT is
-`settings/store.grandTotal`.
+the business document's `grandTotal`.
 
 ### Indexes
 - `transactions`: `batchId ASC, seq ASC`
@@ -352,10 +362,26 @@ record how each sale was paid.
 
 ## 11. Auth & security
 
-- Firebase Auth (email + password), same as the website admin. Accounts are
-  created in the Firebase console; self sign-up is turned off there.
-- Firestore rules: any signed-in user can read/write; nothing can be deleted;
-  transactions can only be created; closed batches are read-only.
+- Firebase Auth (email + password). Anyone can create an account on the login
+  page (sign-up must be enabled in the Firebase console).
+- **New account → `/setup`:** enter store info (name, address, phone required;
+  receipt header/footer optional). Saving creates `members/{uid}` with
+  `businessId = uid`, `role: "admin"`, and the business document, then
+  opens the register. Taxes are added in Settings → Taxes (no defaults).
+- After sign-in the app reads `members/{uid}`: no member doc, or an admin whose
+  store info isn't saved yet → `/setup`; a staff member of a business that
+  isn't set up yet is signed out with a message.
+- **Roles:** admins can do everything. Staff are strictly read only: they can
+  sign in and see every page an admin sees, but every control that changes
+  something is greyed out (register keypad, Close Z, Save, Add / Edit / move /
+  on-off), with a "View only" note. The rules refuse every staff write.
+- Staff accounts (`role: "staff"`) will be added by an admin via the Admin SDK
+  (server side); not built yet.
+- Firestore rules: members can only read under their own business (checked
+  against `members/{uid}`), and only admins can write; nothing can be deleted; transactions can only be
+  created; closed batches are read-only. Staff can read only their own member
+  doc; the only write allowed is sign-up creating it as admin of a business
+  whose id is their own uid.
 - Firebase config in `.env.local` (`NEXT_PUBLIC_*`, same names as the website
   admin).
 

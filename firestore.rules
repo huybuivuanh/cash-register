@@ -2,32 +2,64 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Anyone signed in is staff (accounts are only created in the Firebase console).
     function signedIn() {
       return request.auth != null;
     }
 
-    // settings/store, taxes, taxButtons: staff can read and edit, never delete
-    // (hide taxes and buttons with active: false instead).
-    match /settings/{docId} {
-      allow read, create, update: if signedIn();
-    }
-    match /taxes/{taxId} {
-      allow read, create, update: if signedIn();
-    }
-    match /taxButtons/{buttonId} {
-      allow read, create, update: if signedIn();
+    // members/{uid} = { businessId, role: "staff" | "admin" } links a login to its one business.
+    function memberPath() {
+      return /databases/$(database)/documents/members/$(request.auth.uid);
     }
 
-    // Closed batches (Z reports) are final.
-    match /batches/{batchId} {
-      allow read, create: if signedIn();
-      allow update: if signedIn() && resource.data.status == 'open';
+    // Signed in, linked to a business, and it's this one. Members can read everything in it.
+    function isMemberOf(bizId) {
+      return signedIn() && exists(memberPath()) && get(memberPath()).data.businessId == bizId;
     }
 
-    // Transactions are never edited or deleted. Mistakes are fixed with a refund.
-    match /transactions/{txnId} {
-      allow read, create: if signedIn();
+    // Only admins write. Staff are read only: no sales, no Z close, no settings.
+    function isAdminOf(bizId) {
+      return isMemberOf(bizId) && get(memberPath()).data.role == 'admin';
+    }
+
+    // Everyone can read only their own. Sign-up may create it once, and only as
+    // admin of a brand-new business whose id is the account's own uid, so nobody
+    // can add themselves to someone else's business. Staff members (role "staff")
+    // are added later by an admin through the Admin SDK, which skips these rules.
+    match /members/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['businessId', 'role'])
+        && request.resource.data.businessId == uid
+        && request.resource.data.role == 'admin';
+    }
+
+    // The business document holds its settings: store info, counters, GT.
+    match /businesses/{bizId} {
+      allow read: if isMemberOf(bizId);
+      allow create, update: if isAdminOf(bizId);
+
+      // Taxes and tax buttons: never deleted (turn off with active: false instead).
+      match /taxes/{taxId} {
+        allow read: if isMemberOf(bizId);
+        allow create, update: if isAdminOf(bizId);
+      }
+      match /taxButtons/{buttonId} {
+        allow read: if isMemberOf(bizId);
+        allow create, update: if isAdminOf(bizId);
+      }
+
+      // Closed batches (Z reports) are final.
+      match /batches/{batchId} {
+        allow read: if isMemberOf(bizId);
+        allow create: if isAdminOf(bizId);
+        allow update: if isAdminOf(bizId) && resource.data.status == 'open';
+      }
+
+      // Transactions are never edited or deleted. Mistakes are fixed with a refund.
+      match /transactions/{txnId} {
+        allow read: if isMemberOf(bizId);
+        allow create: if isAdminOf(bizId);
+      }
     }
   }
 }

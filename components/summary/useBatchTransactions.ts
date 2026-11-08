@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, doc, onSnapshot, query, where } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { onSnapshot, query, where } from "firebase/firestore";
+import { bizCollection, bizDoc } from "@/lib/business";
 import { toDate, toTransaction } from "@/lib/transactions";
 
 type Loaded = {
@@ -28,7 +28,7 @@ export function useBatchTransactions(batchId: string | null) {
       setLoaded({ batchId, transactions: [], openedAt: null, error: err.message || "Couldn't load the sales." });
 
     const stopTransactions = onSnapshot(
-      query(collection(db, "transactions"), where("batchId", "==", batchId)),
+      query(bizCollection("transactions"), where("batchId", "==", batchId)),
       (snap) => {
         transactions = snap.docs.map((d) => toTransaction(d.id, d.data({ serverTimestamps: "estimate" })));
         publish();
@@ -36,7 +36,7 @@ export function useBatchTransactions(batchId: string | null) {
       fail,
     );
     const stopBatch = onSnapshot(
-      doc(db, "batches", batchId),
+      bizDoc("batches", batchId),
       (snap) => {
         openedAt = toDate(snap.data({ serverTimestamps: "estimate" })?.openedAt);
         batchLoaded = true;

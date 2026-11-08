@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { doc, onSnapshot, setDoc, type Unsubscribe } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { onSnapshot, setDoc, type Unsubscribe } from "firebase/firestore";
+import { businessDoc } from "@/lib/business";
 
 interface StoreSettingsState {
   settings: StoreSettings | null;
@@ -12,7 +12,8 @@ interface StoreSettingsState {
   reset: () => void;
 }
 
-const SETTINGS_DOC = doc(db, "settings", "store");
+/** Settings live on the current business's own document. */
+const settingsDoc = () => businessDoc();
 
 /** Used until the settings doc is first saved. */
 export const STORE_SETTINGS_DEFAULTS: StoreSettings = {
@@ -41,7 +42,7 @@ export const useStoreSettingsStore = create<StoreSettingsState>((set) => ({
   listen: () => {
     set({ loading: true, error: null });
     return onSnapshot(
-      SETTINGS_DOC,
+      settingsDoc(),
       (snapshot) => {
         set({
           settings: snapshot.exists()
@@ -58,7 +59,7 @@ export const useStoreSettingsStore = create<StoreSettingsState>((set) => ({
   updateSettings: async (patch) => {
     set({ error: null });
     try {
-      await setDoc(SETTINGS_DOC, patch, { merge: true });
+      await setDoc(settingsDoc(), patch, { merge: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to update settings";
       set({ error: message });

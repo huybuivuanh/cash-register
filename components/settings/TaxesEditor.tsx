@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField, Field, FormActions, FormError, Input } from "@/components/ui/form";
 import { Modal } from "@/components/ui/Modal";
@@ -16,6 +17,7 @@ export function TaxesEditor() {
   const taxButtons = useTaxButtonsStore((s) => s.taxButtons);
   const [editing, setEditing] = useState<Tax | "new" | null>(null);
   const [busy, setBusy] = useState(false);
+  const { isAdmin } = useAuth();
 
   /** Row actions. A failure shows at the top of the page (the store records it). */
   async function run(action: () => Promise<void>) {
@@ -52,7 +54,9 @@ export function TaxesEditor() {
             Changing a rate only affects new sales. Past receipts keep the rate they were charged.
           </p>
         </div>
-        <Button onClick={() => setEditing("new")}>Add tax</Button>
+        <Button onClick={() => setEditing("new")} disabled={!isAdmin}>
+          Add tax
+        </Button>
       </div>
 
       {taxes.length === 0 ? (
@@ -65,7 +69,7 @@ export function TaxesEditor() {
               active={tax.active}
               first={i === 0}
               last={i === taxes.length - 1}
-              disabled={busy}
+              disabled={busy || !isAdmin}
               onMove={(dir) => run(() => setOrder(moveId(taxes.map((t) => t.id), i, dir)))}
               onEdit={() => setEditing(tax)}
               onToggle={() => handleToggle(tax)}

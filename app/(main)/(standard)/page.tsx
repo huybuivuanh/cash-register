@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
+import { ViewOnlyNote } from "@/components/ViewOnlyNote";
 import { Keypad, type TaxKey } from "@/components/register/Keypad";
 import { SalePanel } from "@/components/register/SalePanel";
 import { useRegister } from "@/components/register/useRegister";
-import { Button } from "@/components/ui/Button";
-import { FormError } from "@/components/ui/form";
 import type { RegisterAction } from "@/lib/register-machine";
 import { formatSeq } from "@/lib/money";
-import { createDefaultTaxes } from "@/lib/transactions";
 import { useModalStore } from "@/stores/modalStore";
 import { useStoreSettingsStore } from "@/stores/storeSettingsStore";
 import { useTaxButtonsStore } from "@/stores/taxButtonsStore";
@@ -40,6 +39,7 @@ function keyToAction(e: KeyboardEvent, taxKeys: TaxKey[]): RegisterAction | null
 }
 
 export default function RegisterPage() {
+  const { isAdmin } = useAuth();
   const { settings, error: settingsError } = useStoreSettingsStore();
   const { taxes, loading: taxesLoading, error: taxesError } = useTaxesStore();
   const { taxButtons, loading: buttonsLoading, error: buttonsError } = useTaxButtonsStore();
@@ -57,6 +57,7 @@ export default function RegisterPage() {
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      if (!isAdmin) return; // staff are read only
       if (e.ctrlKey || e.metaKey || e.altKey || useModalStore.getState().open) return;
       const target = e.target as HTMLElement | null;
       if (target?.closest("input, textarea, select, [contenteditable]")) return;
@@ -67,7 +68,7 @@ export default function RegisterPage() {
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [taxKeys, press]);
+  }, [taxKeys, press, isAdmin]);
 
   const loadError = settingsError || taxesError || buttonsError;
   if (loadError) return <p className="text-red-600">Can&apos;t load the register: {loadError}</p>;
@@ -75,14 +76,18 @@ export default function RegisterPage() {
 
   return (
     <div className="space-y-4">
-      {taxKeys.length === 0 && <NoTaxButtons canCreateDefaults={taxes.length === 0 && taxButtons.length === 0} />}
+      {!isAdmin && <ViewOnlyNote />}
+      {taxKeys.length === 0 && <NoTaxButtons />}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
         <div className="order-2 lg:order-1">
           <SalePanel state={state} nextSeq={settings.nextSeqNumber} />
         </div>
         <div className="order-1 lg:order-2">
-          <Keypad state={state} taxKeys={taxKeys} press={press} />
+          {/* A disabled fieldset turns off every key at once (staff are read only). */}
+          <fieldset disabled={!isAdmin} className="min-w-0">
+            <Keypad state={state} taxKeys={taxKeys} press={press} />
+          </fieldset>
         </div>
       </div>
 
@@ -100,50 +105,16 @@ export default function RegisterPage() {
 }
 
 /** Shown when there are no tax buttons to ring sales up with. */
-function NoTaxButtons({ canCreateDefaults }: { canCreateDefaults: boolean }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleCreate() {
-    setBusy(true);
-    setError(null);
-    try {
-      await createDefaultTaxes();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't create the taxes.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
+function NoTaxButtons() {
   return (
-    <div className="space-y-3 rounded-xl border border-gold bg-gold/10 p-4">
+    <div className="rounded-xl border border-gold bg-gold/10 p-4">
       <p className="font-medium">No tax buttons yet, so sales can&apos;t be rung up.</p>
-      {canCreateDefaults ? (
-        <>
-          <p className="text-sm text-foreground/70">
-            Start with the old register&apos;s setup: GST 5% and PST 6%, with buttons T1+2 (was DEPT026),
-            T1 (was DEPT027) and NO TAX.
-          </p>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button onClick={handleCreate} disabled={busy}>
-              {busy ? "Creating…" : "Create default taxes"}
-            </Button>
-            <Link href="/settings/taxes" className="text-sm underline">
-              or set up your own
-            </Link>
-          </div>
-          <FormError message={error} />
-        </>
-      ) : (
-        <p className="text-sm text-foreground/70">
-          Every tax button is turned off or none are set up.{" "}
-          <Link href="/settings/taxes" className="underline">
-            Go to Settings → Taxes
-          </Link>{" "}
-          to turn one on.
-        </p>
-      )}
+      <p className="text-sm text-foreground/70">
+        <Link href="/settings/taxes" className="underline">
+          Go to Settings → Taxes
+        </Link>{" "}
+        to add your taxes and the buttons that charge them, or turn a button back on.
+      </p>
     </div>
   );
 }

@@ -138,7 +138,8 @@ are listed separately (`RF` count and amount).
 
 ### Keys
 - **Digits** fill from the right: `1` `2` `5` `0` → `12.50`. Plus a `00` key.
-- **CLR** clears the typed amount; with nothing typed, removes the last line.
+- **CLR** removes the last digit typed (`12.50` → `1.25`); with nothing typed,
+  removes the last line.
 - **CANCEL SALE** throws away the sale being rung up (nothing saved).
 - **ENTER** right after a tax button saves the sale with the exact amount paid
   (no SUBTOTAL needed). After SUBTOTAL: no tendered amount = exact; tendered ≥

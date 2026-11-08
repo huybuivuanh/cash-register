@@ -122,8 +122,10 @@ test("a tax button after SUBTOTAL adds another line", () => {
   assert.equal(s.lines.length, 2);
 });
 
-test("CLR clears typing first, then removes the last line", () => {
+test("CLR removes one digit at a time, then removes the last line", () => {
   let s = press(initialRegisterState, "1000", "T1", "2000", "T1", "55");
+  s = press(s, "clear");
+  assert.equal(s.digits, "5");
   s = press(s, "clear");
   assert.equal(s.digits, "");
   assert.equal(s.lines.length, 2);

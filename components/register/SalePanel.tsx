@@ -12,7 +12,15 @@ function Row({ label, amount, className = "" }: { label: React.ReactNode; amount
 }
 
 /** Left side of the register: the sale being rung up, or the one just saved. */
-export function SalePanel({ state, nextSeq }: { state: RegisterState; nextSeq: number }) {
+export function SalePanel({
+  state,
+  nextSeq,
+  className = "",
+}: {
+  state: RegisterState;
+  nextSeq: number;
+  className?: string;
+}) {
   const done = state.done;
   const lines = done ? done.lines : state.lines;
   const type = done ? done.type : state.mode;
@@ -22,7 +30,7 @@ export function SalePanel({ state, nextSeq }: { state: RegisterState; nextSeq: n
   return (
     <section
       aria-label={refund ? "Refund" : "Sale"}
-      className={`flex min-h-80 flex-col overflow-hidden rounded-xl border-2 ${refund ? "border-red-600" : "border-foreground/10"}`}
+      className={`flex min-h-80 flex-col overflow-hidden rounded-xl border-2 ${refund ? "border-red-600" : "border-foreground/10"} ${className}`}
     >
       <header
         className={`flex items-center justify-between gap-3 px-4 py-3 font-semibold ${refund ? "bg-red-600 text-white" : "bg-foreground/5"}`}

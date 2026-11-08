@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { ViewOnlyNote } from "@/components/ViewOnlyNote";
 import { Keypad, type TaxKey } from "@/components/register/Keypad";
+import { RegisterHelp } from "@/components/register/RegisterHelp";
 import { SalePanel } from "@/components/register/SalePanel";
 import { useRegister } from "@/components/register/useRegister";
 import type { RegisterAction } from "@/lib/register-machine";
-import { formatSeq } from "@/lib/money";
 import { useModalStore } from "@/stores/modalStore";
 import { useStoreSettingsStore } from "@/stores/storeSettingsStore";
 import { useTaxButtonsStore } from "@/stores/taxButtonsStore";
@@ -41,6 +41,7 @@ export default function RegisterPage() {
   const { taxes, loading: taxesLoading, error: taxesError } = useTaxesStore();
   const { taxButtons, loading: buttonsLoading, error: buttonsError } = useTaxButtonsStore();
   const { state, press } = useRegister();
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const taxKeys = useMemo<TaxKey[]>(() => {
     const activeTaxes = new Map(taxes.filter((t) => t.active).map((t) => [t.id, t]));
@@ -54,7 +55,7 @@ export default function RegisterPage() {
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (!isAdmin) return; // staff are read only
+      if (!isAdmin || helpOpen) return; // staff are read only; help modal has the keyboard
       if (e.ctrlKey || e.metaKey || e.altKey || useModalStore.getState().open) return;
       const target = e.target as HTMLElement | null;
       if (target?.closest("input, textarea, select, [contenteditable]")) return;
@@ -65,7 +66,7 @@ export default function RegisterPage() {
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [taxKeys, press, isAdmin]);
+  }, [taxKeys, press, isAdmin, helpOpen]);
 
   const loadError = settingsError || taxesError || buttonsError;
   if (loadError) return <p className="text-red-600">Can&apos;t load the register: {loadError}</p>;
@@ -77,8 +78,9 @@ export default function RegisterPage() {
       {taxKeys.length === 0 && <NoTaxButtons />}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
-        <div className="order-2 lg:order-1">
-          <SalePanel state={state} nextSeq={settings.nextSeqNumber} />
+        {/* On wide screens the sale panel fills the row, so it's as tall as the keypad. */}
+        <div className="relative order-2 lg:order-1">
+          <SalePanel state={state} nextSeq={settings.nextSeqNumber} className="lg:absolute lg:inset-0" />
         </div>
         <div className="order-1 lg:order-2">
           {/* A disabled fieldset turns off every key at once (staff are read only). */}
@@ -88,15 +90,23 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-foreground/60">
-        <span>
-          Z #{settings.nextZNumber} {settings.openBatchId ? "open" : "opens with the first sale"}
-        </span>
-        <span>Next receipt #{formatSeq(settings.nextSeqNumber)}</span>
-        <span className="hidden lg:inline">
-          Keyboard: digits · F1–F6 tax buttons · + subtotal · Enter · Backspace clear · Esc cancel
-        </span>
-      </p>
+      <div className="flex justify-end text-sm">
+        <button
+          type="button"
+          onClick={() => setHelpOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-foreground/20 px-3 py-1.5 font-medium text-foreground hover:bg-foreground/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30"
+        >
+          <span
+            aria-hidden="true"
+            className="flex h-5 w-5 items-center justify-center rounded-full bg-foreground/10 text-xs font-bold"
+          >
+            ?
+          </span>
+          Help
+        </button>
+      </div>
+
+      <RegisterHelp open={helpOpen} onClose={() => setHelpOpen(false)} taxKeys={taxKeys} />
     </div>
   );
 }

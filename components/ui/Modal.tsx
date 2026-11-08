@@ -25,6 +25,8 @@ type ModalProps = {
    *   own scrolling (use `ModalToolbar`, `ModalBody`, `ModalFooter`). For long lists.
    */
   layout?: "form" | "panel";
+  /** Close on a click anywhere, inside the card too. For read-only modals like help. */
+  dismissOnClick?: boolean;
 };
 
 export function Modal({
@@ -35,6 +37,7 @@ export function Modal({
   busy = false,
   size = "md",
   layout = "form",
+  dismissOnClick = false,
 }: ModalProps) {
   const titleId = useId();
 
@@ -59,6 +62,7 @@ export function Modal({
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
+      onClick={dismissOnClick ? requestClose : undefined}
     >
       <div className="absolute inset-0" onClick={requestClose} aria-hidden="true" />
       {layout === "form" ? (

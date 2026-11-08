@@ -101,7 +101,7 @@ export function reduceRegister(state: RegisterState, action: RegisterAction): Re
     }
 
     case "clear":
-      if (s.digits) return { ...s, digits: "" };
+      if (s.digits) return { ...s, digits: s.digits.slice(0, -1) };
       if (s.lines.length) return { ...s, lines: s.lines.slice(0, -1), phase: "entry" };
       return s;
 
@@ -133,7 +133,7 @@ export function reduceRegister(state: RegisterState, action: RegisterAction): Re
 
       const { total } = saleTotals(s.lines);
       if (s.mode === "refund") {
-        if (s.digits) return fail(s, "Refunds pay out the exact total. Press CLR, then ENTER.");
+        if (s.digits) return fail(s, "Refunds pay out the exact total. Clear the amount with CLR, then press ENTER.");
         return { ...s, phase: "saving", payment: { tendered: total, change: 0 } };
       }
       const tendered = s.digits ? typedAmount(s) : total;

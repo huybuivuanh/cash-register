@@ -25,14 +25,9 @@ service cloud.firestore {
       allow update: if signedIn() && resource.data.status == 'open';
     }
 
-    // Transactions are never edited or deleted — only cancelled.
+    // Transactions are never edited or deleted. Mistakes are fixed with a refund.
     match /transactions/{txnId} {
       allow read, create: if signedIn();
-      allow update: if signedIn()
-        && resource.data.status == 'completed'
-        && request.resource.data.status == 'cancelled'
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['status', 'cancelledAt', 'cancelReason']);
     }
   }
 }

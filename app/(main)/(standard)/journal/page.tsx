@@ -155,14 +155,9 @@ export default function JournalPage() {
               <Stat label="Grand total (as of last Z)" value={formatMoney(grandTotal)} tone="gt" />
             )}
           </section>
-          {(totals.refundCount > 0 || totals.cancelCount > 0) && (
+          {totals.refundCount > 0 && (
             <p className="text-sm text-foreground/70">
-              {[
-                totals.refundCount > 0 && `${totals.refundCount} refunds: −${formatMoney(totals.refundTotal)}`,
-                totals.cancelCount > 0 && `${totals.cancelCount} cancelled: ${formatMoney(totals.cancelTotal)}`,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
+              {totals.refundCount} refunds: −{formatMoney(totals.refundTotal)}
             </p>
           )}
 

@@ -21,7 +21,6 @@ which (cash tendered is only used to work out change).
 | Cash tendered + change due | Amount + CASH |
 | Submit the transaction | ENTER / CASH |
 | Refund | RF key |
-| Cancel (void) a sale in the open batch | CANCEL |
 | Print a receipt for any transaction | Receipt printer |
 | Current batch summary, no reset | X report (DAILY X) |
 | Close the batch, with grand total | Z report (DAILY Z) with GT |
@@ -65,8 +64,8 @@ Per-line tax rounding (half up) reproduces every number above exactly.
    `round_half_up(amount × rateBps / 10000)`.
 3. **History never changes when settings change.** Each line copies the button
    name and each tax's name + rate it used.
-4. **Nothing is deleted.** Mistakes are cancelled (status change); refunds are
-   their own transactions.
+4. **Nothing is deleted or edited.** A saved sale can't be voided; mistakes are
+   fixed with a refund, which is its own transaction.
 5. **Every transaction belongs to a batch.** Exactly one batch is open. Z
    closes it and opens the next.
 6. **Grand total (GT) never resets.** It is carried from Z to Z, starting from
@@ -154,7 +153,7 @@ are listed separately (`RF` count and amount).
 /                Register
 /journal         Journal for a date range: every sale, refund and Z close in
                  order, with the range's totals on top. Loads at most 1000.
-                 (Later: open one → reprint, cancel.)
+                 (Later: open one → reprint.)
 /summary         Open batch live (X), Close Z, print.
 /reports         Z history, day / range summary (later).
 /settings        Store tab: receipt header/footer, starting counters
@@ -211,12 +210,11 @@ batches/{batchId}
   zNumber: 3600
   status: "open" | "closed"
   openedAt, closedAt
-  totals: BatchTotals | null   // snapshot written at Z
+  totals: ZTotals | null       // snapshot written at Z
 
 transactions/{txnId}
   seq: 6                       // receipt number, restarts at 1 each Z
   type: "sale" | "refund"
-  status: "completed" | "cancelled"
   batchId
   createdAt: Timestamp
   lines: [{
@@ -232,7 +230,6 @@ transactions/{txnId}
   total: 24500
   tendered: 30000              // refunds: tendered = total, change = 0
   change: 5500
-  cancelledAt, cancelReason    // only when cancelled
 ```
 All amounts are stored positive; `type` decides whether they add or subtract.
 
@@ -244,11 +241,11 @@ All amounts are stored positive; `type` decides whether they add or subtract.
   net: number;                 // incl. tax, minus refunds          (NET)
   saleCount: number;           // customer count                    (CUST CT)
   refundCount: number; refundTotal: number;                       // (RF)
-  cancelCount: number; cancelTotal: number;                       // (CANCEL)
-  firstSeq: number; lastSeq: number;
-  grandTotalBefore?: number; grandTotalAfter?: number;           // Z only (GT)
 }
 ```
+A closed Z saves `ZTotals` = `BatchTotals` plus `zSeq` (the Z's own receipt
+number) and `grandTotalAfter` (GT right after this Z). The running GT is
+`settings/store.grandTotal`.
 
 ### Indexes
 - `transactions`: `batchId ASC, seq ASC`
@@ -286,8 +283,8 @@ Confirm dialog ("Close Z #3600? This can't be undone."), then one
 1. Compute `BatchTotals` for the open batch (`lib/reports.ts`).
 2. Refuse if a sale was saved since the totals were worked out
    (`nextSeqNumber` changed).
-3. `grandTotalAfter = grandTotal + net`; save both on the totals, plus the Z's
-   own receipt number (`zSeq`).
+3. Save `grandTotalAfter = grandTotal + net` and the Z's own receipt number
+   (`zSeq`) on the totals.
 4. Close the batch (`status`, `closedAt`, `totals`).
 5. Update the store: `grandTotal`, `nextZNumber + 1`, `nextSeqNumber: 1`,
    `openBatchId: null`. The next sale opens the next batch.
@@ -300,10 +297,6 @@ Then print `DAILY Z`.
 ### Day / range summary
 Pick the closed batches whose `closedAt` falls in the range, add up their saved
 `totals`, and list those Z reports. Printable.
-
-### Cancel
-Only for transactions in the open batch. Sets `status: "cancelled"`. Excluded
-from totals; counted under CANCEL.
 
 ---
 
@@ -340,7 +333,6 @@ Refund receipts show `*** REFUND ***` and `CASH OUT` instead of CASH/CHANGE.
 --------------------------------
 GROSS (before tax) 3  7,033.04
 REFUNDS            0      0.00
-CANCELLED          0      0.00
 --------------------------------
 TAX       TAXABLE          TAX
 TX1 5%    7,033.04      351.65
@@ -363,7 +355,7 @@ record how each sale was paid.
 - Firebase Auth (email + password), same as the website admin. Accounts are
   created in the Firebase console; self sign-up is turned off there.
 - Firestore rules: any signed-in user can read/write; nothing can be deleted;
-  transactions can only be created and cancelled; closed batches are read-only.
+  transactions can only be created; closed batches are read-only.
 - Firebase config in `.env.local` (`NEXT_PUBLIC_*`, same names as the website
   admin).
 
@@ -391,7 +383,7 @@ record how each sale was paid.
 3. **Register** — keypad state machine, sale + refund, save.
 4. **Printing** — receipt component.
 5. **Reports** — X, Z with GT, Z history, day/range summary.
-6. **Transactions** — browse, reprint, cancel.
+6. **Journal** — browse by date, reprint.
 7. **Hardening** — security rules, keyboard shortcuts.
 
 ### Code layout (same structure as the website admin)

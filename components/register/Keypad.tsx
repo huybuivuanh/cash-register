@@ -1,6 +1,10 @@
 import type { ReactNode } from "react";
 import { formatMoney } from "@/lib/money";
-import { typedAmount, type RegisterAction, type RegisterState } from "@/lib/register-machine";
+import {
+  typedAmount,
+  type RegisterAction,
+  type RegisterState,
+} from "@/lib/register-machine";
 import { formatRate, saleTotals } from "@/lib/tax";
 
 /** A tax button with the active taxes it charges. */
@@ -45,17 +49,31 @@ function Key({
 }
 
 /** What the big display shows for each step of a sale. */
-function display(state: RegisterState): { label: string; value: number; sub?: string } {
+function display(state: RegisterState): {
+  label: string;
+  value: number;
+  sub?: string;
+} {
   if (state.phase === "done" && state.done) {
     const total = saleTotals(state.done.lines).total;
-    if (state.done.type === "refund") return { label: "CASH OUT", value: total };
-    return { label: "CHANGE", value: state.done.change, sub: `Cash ${formatMoney(state.done.tendered)}` };
+    if (state.done.type === "refund")
+      return { label: "CASH OUT", value: total };
+    return {
+      label: "CHANGE",
+      value: state.done.change,
+      sub: `Cash ${formatMoney(state.done.tendered)}`,
+    };
   }
   const total = saleTotals(state.lines).total;
   const refund = state.mode === "refund";
   if (state.phase === "saving") return { label: "SAVING…", value: total };
   if (state.phase === "subtotal") {
-    if (state.digits) return { label: "CASH", value: typedAmount(state), sub: `Total ${formatMoney(total)}` };
+    if (state.digits)
+      return {
+        label: "CASH",
+        value: typedAmount(state),
+        sub: `Total ${formatMoney(total)}`,
+      };
     return {
       label: refund ? "REFUND TOTAL" : "TOTAL DUE",
       value: total,
@@ -93,15 +111,22 @@ export function Keypad({
         className={`rounded-xl px-4 py-3 text-right ${refund ? "bg-red-600 text-white" : "bg-ink text-on-ink"}`}
         aria-live="polite"
       >
-        <div className={`text-xs font-bold tracking-widest ${refund ? "text-white/80" : "text-gold"}`}>
+        <div
+          className={`text-xs font-bold tracking-widest ${refund ? "text-white/80" : "text-gold"}`}
+        >
           {shown.label}
         </div>
-        <div className="text-4xl font-bold tabular-nums sm:text-5xl">{formatMoney(shown.value)}</div>
+        <div className="text-4xl font-bold tabular-nums sm:text-5xl">
+          {formatMoney(shown.value)}
+        </div>
         <div className="min-h-5 text-sm opacity-70">{shown.sub}</div>
       </div>
 
       {state.error && (
-        <p role="alert" className="rounded-lg bg-red-600/10 px-3 py-2 text-sm font-medium text-red-700">
+        <p
+          role="alert"
+          className="rounded-lg bg-red-600/10 px-3 py-2 text-sm font-medium text-red-700"
+        >
           {state.error}
         </p>
       )}
@@ -111,31 +136,55 @@ export function Keypad({
           {DIGIT_ROWS.map((row, r) => (
             <div key={r} className="contents">
               {row.map((d) => (
-                <Key key={d} tone="digit" onPress={() => press({ type: "digit", digit: d })}>
+                <Key
+                  key={d}
+                  tone="digit"
+                  onPress={() => press({ type: "digit", digit: d })}
+                >
                   {d}
                 </Key>
               ))}
               {r === 0 && (
-                <Key tone="func" onPress={() => press({ type: "clear" })} title="Backspace">
+                <Key
+                  tone="func"
+                  onPress={() => press({ type: "clear" })}
+                  title="Backspace"
+                >
                   CLR
                 </Key>
               )}
               {r === 1 && (
-                <Key tone="danger" onPress={() => press({ type: "refund" })} aria-pressed={refund}>
+                <Key
+                  tone="danger"
+                  onPress={() => press({ type: "refund" })}
+                  aria-pressed={refund}
+                >
                   REFUND
                 </Key>
               )}
               {r === 2 && (
-                <Key tone="func" onPress={() => press({ type: "cancelSale" })} title="Esc">
+                <Key
+                  tone="func"
+                  onPress={() => press({ type: "cancelSale" })}
+                  title="Esc"
+                >
                   CANCEL SALE
                 </Key>
               )}
             </div>
           ))}
-          <Key tone="digit" className="col-span-2" onPress={() => press({ type: "digit", digit: "0" })}>
+          <Key
+            tone="digit"
+            className="col-span-2"
+            onPress={() => press({ type: "digit", digit: "0" })}
+          >
             0
           </Key>
-          <Key tone="digit" className="col-span-2" onPress={() => press({ type: "digit", digit: "00" })}>
+          <Key
+            tone="digit"
+            className="col-span-2"
+            onPress={() => press({ type: "digit", digit: "00" })}
+          >
             00
           </Key>
         </div>
@@ -151,7 +200,9 @@ export function Keypad({
               >
                 <span className="text-lg leading-tight">{button.label}</span>
                 <span className="text-xs font-medium opacity-70">
-                  {taxes.length ? taxes.map((t) => formatRate(t.rateBps)).join(" + ") : "no tax"}
+                  {taxes.length
+                    ? taxes.map((t) => formatRate(t.rateBps)).join(" + ")
+                    : "0%"}
                   {i < 6 && ` · F${i + 1}`}
                 </span>
               </Key>
@@ -160,10 +211,19 @@ export function Keypad({
         )}
 
         <div className="grid grid-cols-2 gap-2">
-          <Key tone="func" className="text-base" onPress={() => press({ type: "subtotal" })} title="Shift">
+          <Key
+            tone="func"
+            className="text-base"
+            onPress={() => press({ type: "subtotal" })}
+            title="Shift"
+          >
             SUBTOTAL
           </Key>
-          <Key tone="enter" onPress={() => press({ type: "enter" })} title="Enter">
+          <Key
+            tone="enter"
+            onPress={() => press({ type: "enter" })}
+            title="Enter"
+          >
             ENTER
           </Key>
         </div>

@@ -163,7 +163,7 @@ function txn(seq: number, amount: number, button: { id: string; label: string },
   const lines: TransactionLine[] = [{ buttonId: button.id, buttonLabel: button.label, amount, taxes: lineTaxes(amount, taxes) }];
   const { subtotal, taxTotal, total } = saleTotals(lines);
   return {
-    id: `t${seq}`, seq, type: "sale", status: "completed", batchId: "b1", createdAt: new Date(0),
+    id: `t${seq}`, seq, type: "sale", batchId: "b1", createdAt: new Date(0),
     lines, subtotal, taxTotal, total, tendered: total, change: 0, ...extra,
   };
 }
@@ -181,23 +181,19 @@ test("Z totals match the 09-22-2026 tape", () => {
     ["TX2", 366398, 21984],
   ]);
   assert.equal(z.saleCount, 3);
-  assert.deepEqual([z.firstSeq, z.lastSeq], [1, 3]);
 });
 
-test("refunds subtract and cancelled sales only count under cancel", () => {
+test("refunds subtract", () => {
   const z = computeBatchTotals([
     txn(1, 22072, T12, [TX1, TX2]),
     txn(2, 22072, T12, [TX1, TX2], { type: "refund" }),
-    txn(3, 1000, T1, [TX1], { status: "cancelled" }),
   ]);
   assert.equal(z.net, 0);
   assert.equal(z.gross, 0);
   assert.deepEqual([z.saleCount, z.refundCount, z.refundTotal], [1, 1, 24500]);
-  assert.deepEqual([z.cancelCount, z.cancelTotal], [1, 1050]);
-  assert.deepEqual([z.firstSeq, z.lastSeq], [1, 3]);
 });
 
 test("an empty batch has zero totals", () => {
   const z = computeBatchTotals([]);
-  assert.deepEqual([z.net, z.saleCount, z.firstSeq, z.byTax.length], [0, 0, 0, 0]);
+  assert.deepEqual([z.net, z.saleCount, z.byTax.length], [0, 0, 0]);
 });

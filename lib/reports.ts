@@ -1,7 +1,6 @@
 /**
  * X / Z report totals from a batch's transactions (docs/DESIGN.md §7).
- * Pure, so it can be tested on its own. Refunds subtract; cancelled sales
- * are left out of the totals and only counted under cancel.
+ * Pure, so it can be tested on its own. Refunds subtract.
  */
 export function computeBatchTotals(transactions: Transaction[]): BatchTotals {
   const byTax = new Map<string, TaxSummary>();
@@ -12,22 +11,9 @@ export function computeBatchTotals(transactions: Transaction[]): BatchTotals {
     saleCount: 0,
     refundCount: 0,
     refundTotal: 0,
-    cancelCount: 0,
-    cancelTotal: 0,
-    firstSeq: 0,
-    lastSeq: 0,
   };
 
-  for (const t of [...transactions].sort((a, b) => a.seq - b.seq)) {
-    if (!totals.firstSeq) totals.firstSeq = t.seq;
-    totals.lastSeq = t.seq;
-
-    if (t.status === "cancelled") {
-      totals.cancelCount++;
-      totals.cancelTotal += t.total;
-      continue;
-    }
-
+  for (const t of transactions) {
     const sign = t.type === "refund" ? -1 : 1;
     if (sign > 0) totals.saleCount++;
     else {

@@ -19,13 +19,12 @@ function Row({ label, amount, className = "" }: { label: ReactNode; amount: Reac
 /** One sale or refund, like a receipt on the journal tape. */
 export function TransactionEntry({ t }: { t: Transaction }) {
   const refund = t.type === "refund";
-  const cancelled = t.status === "cancelled";
   const { byTax } = saleTotals(t.lines);
 
   return (
     <article
       className={`${cardClass} border-l-4 ${
-        cancelled ? "border-l-foreground/30 opacity-60" : refund ? "border-l-red-500 bg-red-50/60" : "border-l-emerald-500"
+        refund ? "border-l-red-500 bg-red-50/60" : "border-l-emerald-500"
       }`}
     >
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
@@ -38,13 +37,10 @@ export function TransactionEntry({ t }: { t: Transaction }) {
             {refund ? "REFUND" : "SALE"}
           </span>
           #{formatSeq(t.seq)}
-          {cancelled && (
-            <span className="rounded-full bg-foreground/10 px-2 py-0.5 font-sans text-xs font-medium">Cancelled</span>
-          )}
         </span>
         <span className="text-foreground/70">{formatTapeDate(t.createdAt)}</span>
       </div>
-      <div className={cancelled ? "line-through" : ""}>
+      <div>
         {t.lines.map((line, i) => (
           <Row key={i} label={line.buttonLabel} amount={formatMoney(line.amount)} />
         ))}

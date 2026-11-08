@@ -67,7 +67,6 @@ declare global {
     /** Receipt number. Restarts at 1 after each Z. */
     seq: number;
     type: TransactionType;
-    status: "completed" | "cancelled";
     batchId: string;
     createdAt: Date;
     lines: TransactionLine[];
@@ -77,8 +76,6 @@ declare global {
     /** Cash handed over (refunds: = total). */
     tendered: number;
     change: number;
-    cancelledAt?: Date;
-    cancelReason?: string;
   }
 
   /** batches/{id} — the sales between two Z reports. */
@@ -89,7 +86,7 @@ declare global {
     openedAt: Date;
     closedAt: Date | null;
     /** Saved when the Z is closed. */
-    totals: BatchTotals | null;
+    totals: ZTotals | null;
   }
 
   /** Taxable amount and tax per tax (TA1/TX1, TA2/TX2). Refunds subtract. */
@@ -101,7 +98,7 @@ declare global {
     tax: number;
   }
 
-  /** Totals for an X or Z report. Cancelled sales are only counted under cancel. */
+  /** Totals for an X or Z report. */
   interface BatchTotals {
     /** Sales before tax, minus refunds (GROSS). */
     gross: number;
@@ -112,15 +109,14 @@ declare global {
     saleCount: number;
     refundCount: number;
     refundTotal: number;
-    cancelCount: number;
-    cancelTotal: number;
-    /** First and last receipt number in the batch, 0 when empty. */
-    firstSeq: number;
-    lastSeq: number;
-    /** Z only: the Z's own number in the receipt sequence, and the GT before and after. */
-    zSeq?: number;
-    grandTotalBefore?: number;
-    grandTotalAfter?: number;
+  }
+
+  /** Totals saved with a closed Z. */
+  interface ZTotals extends BatchTotals {
+    /** The Z's own receipt number (it takes the next one when it closes). */
+    zSeq: number;
+    /** Grand total right after this Z. The running GT lives in settings/store. */
+    grandTotalAfter: number;
   }
 }
 

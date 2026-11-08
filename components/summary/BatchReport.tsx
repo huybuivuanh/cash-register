@@ -35,26 +35,21 @@ function Divider() {
 }
 
 /** DAILY X / DAILY Z report, laid out like the old register's tape (docs/DESIGN.md §10). */
-export function BatchReport({
-  kind,
-  zNumber,
-  storeName,
-  totals,
-  date,
-  grandTotal,
-  className = "",
-}: {
-  kind: "x" | "z";
+type BatchReportProps = {
   zNumber: number;
   storeName: string;
-  totals: BatchTotals;
   date: Date;
-  /** GT to print. Defaults to the GT saved with a closed Z. */
-  grandTotal?: number;
   /** Extra classes for the outer box (e.g. colours). */
   className?: string;
-}) {
-  const gt = grandTotal ?? totals.grandTotalAfter;
+} & (
+  | { kind: "x"; totals: BatchTotals; /** GT to show for the open batch. */ grandTotal: number }
+  | { kind: "z"; totals: ZTotals }
+);
+
+export function BatchReport(props: BatchReportProps) {
+  const { kind, zNumber, storeName, totals, date, className = "" } = props;
+  const gt = props.kind === "z" ? props.totals.grandTotalAfter : props.grandTotal;
+  const zSeq = props.kind === "z" ? props.totals.zSeq : null;
   const taxTotal = totals.byTax.reduce((sum, t) => sum + t.tax, 0);
 
   return (
@@ -64,7 +59,7 @@ export function BatchReport({
         DAILY {kind === "z" ? "Z" : "X"} · Z #{zNumber}
       </p>
       <div className="flex justify-between">
-        <span>{totals.zSeq ? `#${formatSeq(totals.zSeq)}` : ""}</span>
+        <span>{zSeq ? `#${formatSeq(zSeq)}` : ""}</span>
         <span>{formatTapeDate(date)}</span>
       </div>
 
@@ -78,11 +73,6 @@ export function BatchReport({
         label="REFUNDS"
         count={totals.refundCount}
         amount={formatMoney(totals.refundTotal)}
-      />
-      <Row
-        label="CANCELLED"
-        count={totals.cancelCount}
-        amount={formatMoney(totals.cancelTotal)}
       />
 
       <Divider />
@@ -112,7 +102,7 @@ export function BatchReport({
       <Row label="NET (with tax)" amount={formatMoney(totals.net)} bold />
 
       <Divider />
-      {gt !== undefined && <Row label="GT" amount={formatMoney(gt)} />}
+      <Row label="GT" amount={formatMoney(gt)} />
       <Row label="Z TRANSACTIONS" amount={zNumber} />
     </div>
   );

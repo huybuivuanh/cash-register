@@ -54,7 +54,6 @@ export async function saveTransaction(input: NewTransaction): Promise<{ id: stri
     tx.set(txnRef, {
       seq,
       type: input.type,
-      status: "completed",
       batchId,
       createdAt: serverTimestamp(),
       lines: input.lines,
@@ -84,11 +83,11 @@ export async function createDefaultTaxes(): Promise<void> {
   await batch.commit();
 }
 
-export type ClosedZ = { zNumber: number; closedAt: Date; totals: BatchTotals };
+export type ClosedZ = { zNumber: number; closedAt: Date; totals: ZTotals };
 
 /**
  * Closes the open batch (the Z), all in one Firestore transaction:
- * saves the totals with the GT before/after, adds NET to the GT, gives the Z
+ * saves the totals with the GT after this Z, adds NET to the GT, gives the Z
  * the next receipt number, then moves on to the next Z number and restarts
  * receipt numbers at 1. The next sale
  * opens the new batch.
@@ -115,10 +114,9 @@ export async function closeBatch(batchId: string, totals: BatchTotals, seenNextS
     }
 
     const zNumber = batch.zNumber as number;
-    const saved: BatchTotals = {
+    const saved: ZTotals = {
       ...totals,
       zSeq: settings.nextSeqNumber,
-      grandTotalBefore: settings.grandTotal,
       grandTotalAfter: settings.grandTotal + totals.net,
     };
 
@@ -144,10 +142,9 @@ export function toDate(value: unknown): Date | null {
 
 export function toTransaction(id: string, data: DocumentData): Transaction {
   return {
-    ...(data as Omit<Transaction, "id" | "createdAt" | "cancelledAt">),
+    ...(data as Omit<Transaction, "id" | "createdAt">),
     id,
     createdAt: toDate(data.createdAt) ?? new Date(),
-    cancelledAt: toDate(data.cancelledAt) ?? undefined,
   };
 }
 

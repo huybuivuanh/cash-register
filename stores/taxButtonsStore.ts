@@ -45,6 +45,7 @@ export const useTaxButtonsStore = create<TaxButtonsState>((set) => ({
             id: d.id,
             label: (data.label as string) ?? "",
             taxIds: (data.taxIds as string[]) ?? [],
+            shortcut: (data.shortcut as string | null) ?? null,
             order: (data.order as number) ?? 0,
             active: (data.active as boolean) ?? true,
           };

@@ -30,12 +30,9 @@ function keyToAction(e: KeyboardEvent, taxKeys: TaxKey[]): RegisterAction | null
     case "Escape":
       return { type: "cancelSale" };
   }
-  const f = /^F([1-6])$/.exec(e.key);
-  if (f) {
-    const key = taxKeys[Number(f[1]) - 1];
-    return key ? { type: "taxButton", button: key.button, taxes: key.taxes } : null;
-  }
-  return null;
+  // Tax buttons: whatever key each one was given in Settings → Taxes.
+  const key = taxKeys.find((k) => k.button.shortcut === e.code);
+  return key ? { type: "taxButton", button: key.button, taxes: key.taxes } : null;
 }
 
 export default function RegisterPage() {

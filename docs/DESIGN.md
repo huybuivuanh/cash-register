@@ -107,6 +107,7 @@ section and was confusing.
  [IDLE] ──digit──▶ [ENTERING AMOUNT] ──TAX BUTTON──▶ [LINE ADDED]
    ▲                                                    │   │
    │                              digit (another line)◀─┘   │ SUBTOTAL
+   │                       (ENTER here saves, exact amount) │
    │                                                        ▼
    │                                              [SUBTOTAL SHOWN]
    │                                                  │        │ digits
@@ -139,12 +140,16 @@ are listed separately (`RF` count and amount).
 - **Digits** fill from the right: `1` `2` `5` `0` → `12.50`. Plus a `00` key.
 - **CLR** clears the typed amount; with nothing typed, removes the last line.
 - **CANCEL SALE** throws away the sale being rung up (nothing saved).
-- **ENTER** after subtotal: no tendered amount = exact cash; tendered ≥ total =
-  show change; tendered < total = error, nothing saved.
+- **ENTER** right after a tax button saves the sale with the exact amount paid
+  (no SUBTOTAL needed). After SUBTOTAL: no tendered amount = exact; tendered ≥
+  total = show change; tendered < total = error, nothing saved. ENTER with an
+  amount typed but no tax button pressed is refused.
 - **Save fails** (no internet etc.): error shown, sale stays on screen, press
   ENTER again.
 - **Physical keyboard / numpad:** digits, `Enter`, `Backspace` (CLR), `Shift`
-  (SUBTOTAL), `F1`–`F6` (tax buttons in order), `Esc` (cancel sale).
+  (SUBTOTAL), `Esc` (cancel sale). Each tax button can have its own key, set
+  in Settings → Taxes (any key except digits and the keys above, Ctrl/Alt/Tab,
+  F5/F11/F12; one key per button), e.g. Numpad `/` for T1+2.
 
 ---
 

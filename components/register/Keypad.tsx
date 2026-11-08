@@ -6,6 +6,7 @@ import {
   type RegisterState,
 } from "@/lib/register-machine";
 import { formatRate, saleTotals } from "@/lib/tax";
+import { keyLabel } from "@/lib/shortcuts";
 
 /** A tax button with the active taxes it charges. */
 export type TaxKey = { button: TaxButton; taxes: Tax[] };
@@ -191,20 +192,26 @@ export function Keypad({
 
         {taxKeys.length > 0 && (
           <div className="grid grid-cols-3 gap-2">
-            {taxKeys.map(({ button, taxes }, i) => (
+            {taxKeys.map(({ button, taxes }) => (
               <Key
                 key={button.id}
                 tone="tax"
+                className="min-h-20 gap-0.5 py-2"
                 onPress={() => press({ type: "taxButton", button, taxes })}
-                title={i < 6 ? `F${i + 1}` : undefined}
+                title={button.shortcut ? `Keyboard: ${keyLabel(button.shortcut)}` : undefined}
               >
+                {/* 1: name · 2: taxes · 3: keyboard key */}
                 <span className="text-lg leading-tight">{button.label}</span>
-                <span className="text-xs font-medium opacity-70">
+                <span className="text-xs font-medium leading-tight opacity-70">
                   {taxes.length
-                    ? taxes.map((t) => formatRate(t.rateBps)).join(" + ")
-                    : "0%"}
-                  {i < 6 && ` · F${i + 1}`}
+                    ? taxes.map((t) => `${t.label || t.name} ${formatRate(t.rateBps)}`).join(" + ")
+                    : "No tax"}
                 </span>
+                {button.shortcut && (
+                  <span className="mt-0.5 rounded border border-foreground/25 bg-background/60 px-1 font-mono text-[10px] font-semibold leading-4">
+                    {keyLabel(button.shortcut)}
+                  </span>
+                )}
               </Key>
             ))}
           </div>

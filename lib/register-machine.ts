@@ -2,7 +2,8 @@
  * The register's keypad logic as a pure function: (state, key) → new state.
  * No React or Firebase here, so it can be tested on its own. See docs/DESIGN.md §5.
  *
- *   entry ──SUBTOTAL / ENTER──▶ subtotal ──ENTER──▶ saving ──▶ done
+ *   entry ──SUBTOTAL──▶ subtotal ──ENTER──▶ saving ──▶ done
+ *     └───────────── ENTER (exact amount) ─────────▲
  *     ▲    ◀── tax button / CLR ──┘                   │ fail → subtotal
  *     └──────────────────── any key ◀─────────────────┘
  */
@@ -123,8 +124,12 @@ export function reduceRegister(state: RegisterState, action: RegisterAction): Re
       return { ...s, phase: "subtotal" };
 
     case "enter": {
-      // ENTER before SUBTOTAL shows the total first, so one stray press never saves.
-      if (s.phase === "entry") return reduceRegister(s, { type: "subtotal" });
+      // ENTER while ringing up saves straight away with the exact amount paid.
+      // SUBTOTAL's checks still apply (no untaxed amount typed, something rung up).
+      if (s.phase === "entry") {
+        const subtotalled = reduceRegister(s, { type: "subtotal" });
+        return subtotalled.phase === "subtotal" ? reduceRegister(subtotalled, action) : subtotalled;
+      }
 
       const { total } = saleTotals(s.lines);
       if (s.mode === "refund") {

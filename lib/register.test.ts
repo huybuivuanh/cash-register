@@ -6,6 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { formatRate, lineTaxes, parseRate, saleTotals, taxOn } from "./tax.ts";
 import { computeBatchTotals } from "./reports.ts";
+import { keyLabel, reservedKeyReason } from "./shortcuts.ts";
 import {
   initialRegisterState,
   reduceRegister,
@@ -94,11 +95,19 @@ test("too little cash is refused and nothing saves", () => {
   assert.match(s.error ?? "", /less than the total/);
 });
 
-test("ENTER before SUBTOTAL only shows the total", () => {
-  let s = press(initialRegisterState, "1000", "T1", "enter");
-  assert.equal(s.phase, "subtotal");
-  s = press(s, "enter");
+test("ENTER right after a tax button saves with the exact amount", () => {
+  const s = press(initialRegisterState, "22072", "T12", "enter");
   assert.equal(s.phase, "saving");
+  assert.deepEqual(s.payment, { tendered: 24500, change: 0 });
+});
+
+test("ENTER with an untaxed amount typed, or nothing rung up, saves nothing", () => {
+  const typed = press(initialRegisterState, "1000", "T1", "500", "enter");
+  assert.equal(typed.phase, "entry");
+  assert.match(typed.error ?? "", /tax button/);
+  const empty = press(initialRegisterState, "enter");
+  assert.equal(empty.phase, "entry");
+  assert.ok(empty.error);
 });
 
 test("an amount without a tax button can't be subtotalled", () => {
@@ -196,4 +205,14 @@ test("refunds subtract", () => {
 test("an empty batch has zero totals", () => {
   const z = computeBatchTotals([]);
   assert.deepEqual([z.net, z.saleCount, z.byTax.length], [0, 0, 0]);
+});
+
+test("tax button shortcuts can't use keys the register needs", () => {
+  for (const code of ["Digit5", "Numpad0", "Enter", "NumpadEnter", "ShiftLeft", "Backspace", "Escape", "F5", "Tab"]) {
+    assert.ok(reservedKeyReason(code), code);
+  }
+  for (const code of ["NumpadDivide", "NumpadSubtract", "KeyQ", "F1", "Space"]) {
+    assert.equal(reservedKeyReason(code), null, code);
+  }
+  assert.deepEqual(["KeyQ", "NumpadDivide", "F2", "Slash"].map(keyLabel), ["Q", "Numpad /", "F2", "/"]);
 });

@@ -47,6 +47,8 @@ declare global {
     id: string;
     label: string;
     taxIds: string[];
+    /** Keyboard key that presses it (KeyboardEvent.code, e.g. "NumpadDivide"), or null for none. */
+    shortcut: string | null;
     order: number;
     active: boolean;
   }

@@ -46,24 +46,35 @@ main {
   min-width: 0;
 }
 
-/* Receipt and report printing: hide the whole app chrome (nav, page content) and
-   let only the element marked #print-area take over the printed page. */
+/* Report and receipt printing (lib/print.ts): while <html> has .printing, only
+   the element marked .print-area and the wrappers around it go on paper. */
 @media print {
-  body * {
-    visibility: hidden;
+  html.printing body *:not(.print-area):not(.print-area *):not(:has(.print-area)) {
+    display: none !important;
   }
-  #print-area,
-  #print-area * {
-    visibility: visible;
+  /* Wrappers around the printed element: no page padding or height limits, so
+     long reports flow onto more pages. */
+  html.printing body :has(.print-area) {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    max-width: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    position: static !important;
   }
-  #print-area {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    /* Dark mode would otherwise print light text on paper. */
-    color: #000;
-    background: #fff;
+  .print-area {
+    margin: 0 !important;
+    border: 0 !important;
+    padding: 0 !important;
+    color: #000 !important;
+    background: #fff !important;
+  }
+  /* Black on white paper, whatever the on-screen colours are. */
+  .print-area * {
+    color: #000 !important;
+    background: transparent !important;
+    box-shadow: none !important;
   }
 }
 

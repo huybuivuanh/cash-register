@@ -1,8 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { BatchReport, formatTapeDate } from "@/components/summary/BatchReport";
 import { formatMoney, formatSeq } from "@/lib/money";
+import { printElement } from "@/lib/print";
 import { formatRate, saleTotals } from "@/lib/tax";
 
 const cardClass = "rounded-xl border border-foreground/15 bg-background p-3 font-mono text-sm tabular-nums";
@@ -16,13 +17,28 @@ function Row({ label, amount, className = "" }: { label: ReactNode; amount: Reac
   );
 }
 
+/** Small "Print" link for reprinting one journal entry; never shows on paper. */
+function PrintEntryButton({ onClick, className = "" }: { onClick: () => void; className?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-md border border-foreground/20 bg-background px-2 py-0.5 font-sans text-xs font-medium hover:bg-foreground/5 print:hidden ${className}`}
+    >
+      Print
+    </button>
+  );
+}
+
 /** One sale or refund, like a receipt on the journal tape. */
 export function TransactionEntry({ t }: { t: Transaction }) {
   const refund = t.type === "refund";
   const { byTax } = saleTotals(t.lines);
+  const ref = useRef<HTMLElement>(null);
 
   return (
     <article
+      ref={ref}
       className={`${cardClass} border-l-4 ${
         refund ? "border-l-red-500 bg-red-50/60" : "border-l-emerald-500"
       }`}
@@ -38,7 +54,10 @@ export function TransactionEntry({ t }: { t: Transaction }) {
           </span>
           #{formatSeq(t.seq)}
         </span>
-        <span className="text-foreground/70">{formatTapeDate(t.createdAt)}</span>
+        <span className="flex items-center gap-2">
+          <span className="text-foreground/70">{formatTapeDate(t.createdAt)}</span>
+          <PrintEntryButton onClick={() => printElement(ref.current)} />
+        </span>
       </div>
       <div>
         {t.lines.map((line, i) => (
@@ -71,16 +90,20 @@ export function TransactionEntry({ t }: { t: Transaction }) {
 
 /** A Z close in the journal, shown in full like on the old register's tape. */
 export function ZEntry({ batch, storeName }: { batch: Batch; storeName: string }) {
+  const ref = useRef<HTMLDivElement>(null);
   if (batch.totals && batch.closedAt) {
     return (
-      <BatchReport
+      <div ref={ref} className="relative">
+        <PrintEntryButton className="absolute right-3 top-3" onClick={() => printElement(ref.current)} />
+        <BatchReport
         kind="z"
         zNumber={batch.zNumber}
         storeName={storeName}
         totals={batch.totals}
         date={batch.closedAt}
         className="border-2 border-gold bg-gold/10"
-      />
+        />
+      </div>
     );
   }
   return (

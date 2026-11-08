@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { BatchReport, formatTapeDate } from "@/components/summary/BatchReport";
 import { useBatchTransactions } from "@/components/summary/useBatchTransactions";
 import { Button } from "@/components/ui/Button";
@@ -8,6 +8,7 @@ import { FormError } from "@/components/ui/form";
 import { formatMoney } from "@/lib/money";
 import { computeBatchTotals } from "@/lib/reports";
 import { closeBatch, type ClosedZ } from "@/lib/transactions";
+import { printElement } from "@/lib/print";
 import { confirmDialog } from "@/stores/modalStore";
 import { useStoreSettingsStore } from "@/stores/storeSettingsStore";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,6 +24,7 @@ export default function SummaryPage() {
   const [closed, setClosed] = useState<ClosedZ | null>(null);
   const [closing, setClosing] = useState(false);
   const [closeError, setCloseError] = useState<string | null>(null);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   if (settingsError || error) return <p className="text-red-600">Can&apos;t load the summary: {settingsError || error}</p>;
   if (!settings || loading) return <p className="text-foreground/60">Loading…</p>;
@@ -41,10 +43,12 @@ export default function SummaryPage() {
             <Button variant="secondary" onClick={() => setClosed(null)}>
               Done
             </Button>
-            <Button onClick={() => window.print()}>Print Z</Button>
+            <Button onClick={() => printElement(reportRef.current)}>Print Z</Button>
           </div>
         </div>
-        <BatchReport kind="z" zNumber={closed.zNumber} storeName={settings.name} totals={closed.totals} date={closed.closedAt} />
+        <div ref={reportRef}>
+          <BatchReport kind="z" zNumber={closed.zNumber} storeName={settings.name} totals={closed.totals} date={closed.closedAt} />
+        </div>
       </div>
     );
   }
@@ -82,7 +86,7 @@ export default function SummaryPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => window.print()}>
+          <Button variant="secondary" onClick={() => printElement(reportRef.current)}>
             Print
           </Button>
           <Button onClick={handleClose} disabled={!isAdmin || !hasSales || closing}>
@@ -94,14 +98,16 @@ export default function SummaryPage() {
       <div className="print:hidden">
         <FormError message={closeError} />
       </div>
-      <BatchReport
-        kind="x"
-        zNumber={zNumber}
-        storeName={settings.name}
-        totals={totals}
-        date={new Date()}
-        grandTotal={settings.grandTotal + totals.net}
-      />
+      <div ref={reportRef}>
+        <BatchReport
+          kind="x"
+          zNumber={zNumber}
+          storeName={settings.name}
+          totals={totals}
+          date={new Date()}
+          grandTotal={settings.grandTotal + totals.net}
+        />
+      </div>
     </div>
   );
 }

@@ -42,21 +42,28 @@ type BatchReportProps = {
   /** Extra classes for the outer box (e.g. colours). */
   className?: string;
 } & (
-  | { kind: "x"; totals: BatchTotals; /** GT to show for the open batch. */ grandTotal: number }
+  | {
+      kind: "x";
+      totals: BatchTotals;
+      /** GT to show for the open batch. */ grandTotal: number;
+    }
   | { kind: "z"; totals: ZTotals }
 );
 
 export function BatchReport(props: BatchReportProps) {
   const { kind, zNumber, storeName, totals, date, className = "" } = props;
-  const gt = props.kind === "z" ? props.totals.grandTotalAfter : props.grandTotal;
+  const gt =
+    props.kind === "z" ? props.totals.grandTotalAfter : props.grandTotal;
   const zSeq = props.kind === "z" ? props.totals.zSeq : null;
   const taxTotal = totals.byTax.reduce((sum, t) => sum + t.tax, 0);
 
   return (
-    <div id="print-area" className={`w-full rounded-xl border border-foreground/15 bg-background p-4 font-mono text-sm tabular-nums print:border-0 print:p-0 ${className}`}>
+    <div
+      className={`w-full rounded-xl border border-foreground/15 bg-background p-4 font-mono text-sm tabular-nums print:border-0 print:p-0 ${className}`}
+    >
       {storeName && <p className="text-center font-bold">{storeName}</p>}
       <p className="text-center font-bold">
-        DAILY {kind === "z" ? "Z" : "X"} · Z #{zNumber}
+        DAILY {kind === "z" ? "Z" : "X"} · Z #{formatSeq(zNumber)}
       </p>
       <div className="flex justify-between">
         <span>{zSeq ? `#${formatSeq(zSeq)}` : ""}</span>
@@ -64,7 +71,7 @@ export function BatchReport(props: BatchReportProps) {
       </div>
 
       <Divider />
-      <Row label="Z TRANSACTIONS" amount={zNumber} />
+      <Row label="Z TRANSACTIONS" amount={`#${formatSeq(zNumber)}`} />
       <Row label="GRAND TOTAL" amount={formatMoney(gt)} />
 
       <Divider />

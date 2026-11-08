@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { TransactionEntry, ZEntry } from "@/components/journal/JournalEntry";
 import { Button } from "@/components/ui/Button";
 import { Field, FormError, Input } from "@/components/ui/form";
 import { formatMoney } from "@/lib/money";
+import { printElement } from "@/lib/print";
 import { computeBatchTotals } from "@/lib/reports";
 import { formatRate } from "@/lib/tax";
 import { loadJournal, type Journal } from "@/lib/transactions";
@@ -61,6 +62,9 @@ export default function JournalPage() {
   const [journal, setJournal] = useState<Journal | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
+  // Dates of the journal on screen (the inputs may have been changed since).
+  const [shown, setShown] = useState<{ from: string; to: string } | null>(null);
 
   async function show(nextFrom: string, nextTo: string) {
     setFrom(nextFrom);
@@ -71,6 +75,7 @@ export default function JournalPage() {
     setError(null);
     try {
       setJournal(await loadJournal(range[0], range[1], MAX_TRANSACTIONS));
+      setShown({ from: nextFrom, to: nextTo });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't load the transactions.");
     } finally {
@@ -83,7 +88,10 @@ export default function JournalPage() {
     if (!today) return;
     const [start, end] = rangeFor(today, today) as [Date, Date];
     loadJournal(start, end, MAX_TRANSACTIONS)
-      .then(setJournal)
+      .then((j) => {
+        setJournal(j);
+        setShown({ from: today, to: today });
+      })
       .catch((err) => setError(err instanceof Error ? err.message : "Couldn't load the transactions."))
       .finally(() => setLoading(false));
   }, [today]);
@@ -103,7 +111,12 @@ export default function JournalPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Journal</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">Journal</h1>
+        <Button variant="secondary" disabled={!journal || loading} onClick={() => printElement(printRef.current)}>
+          Print
+        </Button>
+      </div>
 
       <form
         className="flex flex-wrap items-end gap-3"
@@ -137,7 +150,13 @@ export default function JournalPage() {
       <FormError message={error} />
 
       {journal && (
-        <>
+        <div ref={printRef} className="space-y-6">
+          {/* Heading on paper only: which store and dates this journal covers. */}
+          <div className="hidden text-center font-mono print:block">
+            {storeName && <p className="font-bold">{storeName}</p>}
+            <p className="font-bold">JOURNAL</p>
+            {shown && <p>{shown.from === shown.to ? shown.from : `${shown.from} to ${shown.to}`}</p>}
+          </div>
           <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             <Stat label="Sales" value={String(totals.saleCount)} />
             <Stat label="Before tax" value={formatMoney(totals.gross)} />
@@ -181,7 +200,7 @@ export default function JournalPage() {
               )}
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );

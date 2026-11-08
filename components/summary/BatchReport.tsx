@@ -53,7 +53,7 @@ export function BatchReport(props: BatchReportProps) {
   const taxTotal = totals.byTax.reduce((sum, t) => sum + t.tax, 0);
 
   return (
-    <div className={`w-full rounded-xl border border-foreground/15 bg-background p-4 font-mono text-sm tabular-nums print:border-0 print:p-0 ${className}`}>
+    <div id="print-area" className={`w-full rounded-xl border border-foreground/15 bg-background p-4 font-mono text-sm tabular-nums print:border-0 print:p-0 ${className}`}>
       {storeName && <p className="text-center font-bold">{storeName}</p>}
       <p className="text-center font-bold">
         DAILY {kind === "z" ? "Z" : "X"} · Z #{zNumber}
@@ -62,6 +62,10 @@ export function BatchReport(props: BatchReportProps) {
         <span>{zSeq ? `#${formatSeq(zSeq)}` : ""}</span>
         <span>{formatTapeDate(date)}</span>
       </div>
+
+      <Divider />
+      <Row label="Z TRANSACTIONS" amount={zNumber} />
+      <Row label="GRAND TOTAL" amount={formatMoney(gt)} />
 
       <Divider />
       <Row
@@ -100,10 +104,6 @@ export function BatchReport(props: BatchReportProps) {
 
       <Divider />
       <Row label="NET (with tax)" amount={formatMoney(totals.net)} bold />
-
-      <Divider />
-      <Row label="GT" amount={formatMoney(gt)} />
-      <Row label="Z TRANSACTIONS" amount={zNumber} />
     </div>
   );
 }

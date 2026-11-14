@@ -38,14 +38,15 @@ service cloud.firestore {
       allow read: if isMemberOf(bizId);
       allow create, update: if isAdminOf(bizId);
 
-      // Taxes and tax buttons: never deleted (turn off with active: false instead).
+      // Taxes and tax buttons: admins may delete them. Past sales keep their own
+      // copy of each button label and tax name + rate, so history doesn't change.
       match /taxes/{taxId} {
         allow read: if isMemberOf(bizId);
-        allow create, update: if isAdminOf(bizId);
+        allow create, update, delete: if isAdminOf(bizId);
       }
       match /taxButtons/{buttonId} {
         allow read: if isMemberOf(bizId);
-        allow create, update: if isAdminOf(bizId);
+        allow create, update, delete: if isAdminOf(bizId);
       }
 
       // Closed batches (Z reports) are final.

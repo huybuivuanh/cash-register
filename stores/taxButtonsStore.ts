@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import {
   addDoc,
+  deleteDoc,
   onSnapshot,
   updateDoc,
   writeBatch,
@@ -19,6 +20,8 @@ interface TaxButtonsState {
   listen: () => Unsubscribe;
   addTaxButton: (button: TaxButtonInput) => Promise<void>;
   updateTaxButton: (id: string, patch: Partial<TaxButtonInput>) => Promise<void>;
+  /** Removes it for good. Past sales keep their own copy, so they don't change. */
+  deleteTaxButton: (id: string) => Promise<void>;
   /** Saves a new order: the first id gets order 1, the next 2, and so on. */
   setOrder: (ids: string[]) => Promise<void>;
   /** Clear cache on logout */
@@ -73,6 +76,16 @@ export const useTaxButtonsStore = create<TaxButtonsState>((set) => ({
       await updateDoc(bizDoc("taxButtons", id), patch);
     } catch (err) {
       set({ error: err instanceof Error ? err.message : "Failed to update tax button" });
+      throw err;
+    }
+  },
+
+  deleteTaxButton: async (id) => {
+    set({ error: null });
+    try {
+      await deleteDoc(bizDoc("taxButtons", id));
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : "Failed to delete tax button" });
       throw err;
     }
   },

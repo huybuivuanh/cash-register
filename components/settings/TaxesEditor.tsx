@@ -7,13 +7,13 @@ import { CheckboxField, Field, FormActions, FormError, Input } from "@/component
 import { Modal } from "@/components/ui/Modal";
 import { errorText, moveId, OffBadge, sectionClass, SettingsRow } from "@/components/settings/SettingsList";
 import { formatRate, parseRate } from "@/lib/tax";
-import { confirmDialog } from "@/stores/modalStore";
+import { alertDialog, confirmDialog } from "@/stores/modalStore";
 import { useTaxButtonsStore } from "@/stores/taxButtonsStore";
 import { useTaxesStore } from "@/stores/taxesStore";
 
-/** List of taxes (GST, PST…) with add / edit / reorder / turn off. */
+/** List of taxes (GST, PST…) with add / edit / reorder / turn off / delete. */
 export function TaxesEditor() {
-  const { taxes, updateTax, setOrder } = useTaxesStore();
+  const { taxes, updateTax, deleteTax, setOrder } = useTaxesStore();
   const taxButtons = useTaxButtonsStore((s) => s.taxButtons);
   const [editing, setEditing] = useState<Tax | "new" | null>(null);
   const [busy, setBusy] = useState(false);
@@ -45,6 +45,24 @@ export function TaxesEditor() {
     run(() => updateTax(tax.id, { active: !tax.active }));
   }
 
+  async function handleDelete(tax: Tax) {
+    // Blocked while a button still charges it: the button would quietly stop charging it.
+    const usedBy = taxButtons.filter((b) => b.taxIds.includes(tax.id)).map((b) => b.label);
+    if (usedBy.length) {
+      await alertDialog(
+        `It's charged by ${usedBy.join(", ")}. Untick it on ${usedBy.length === 1 ? "that button" : "those buttons"} (or delete ${usedBy.length === 1 ? "it" : "them"}) first.`,
+        { title: `Can't delete ${tax.name}` },
+      );
+      return;
+    }
+    const ok = await confirmDialog(`${tax.name} will be removed from settings. Past sales don't change.`, {
+      title: `Delete ${tax.name}?`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (ok) run(() => deleteTax(tax.id));
+  }
+
   return (
     <section className={sectionClass}>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -73,6 +91,7 @@ export function TaxesEditor() {
               onMove={(dir) => run(() => setOrder(moveId(taxes.map((t) => t.id), i, dir)))}
               onEdit={() => setEditing(tax)}
               onToggle={() => handleToggle(tax)}
+              onDelete={() => handleDelete(tax)}
             >
               <p className="font-medium">
                 {tax.name}

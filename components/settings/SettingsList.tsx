@@ -20,7 +20,7 @@ export function errorText(err: unknown, fallback: string): string {
   return err instanceof Error && err.message ? err.message : fallback;
 }
 
-/** One row in a settings list: content on the left, reorder / edit / on-off on the right. */
+/** One row in a settings list: content on the left, reorder / edit / on-off / delete on the right. */
 export function SettingsRow({
   active,
   first,
@@ -29,6 +29,7 @@ export function SettingsRow({
   onMove,
   onEdit,
   onToggle,
+  onDelete,
   children,
 }: {
   active: boolean;
@@ -38,6 +39,7 @@ export function SettingsRow({
   onMove: (dir: -1 | 1) => void;
   onEdit: () => void;
   onToggle: () => void;
+  onDelete: () => void;
   children: ReactNode;
 }) {
   return (
@@ -55,6 +57,14 @@ export function SettingsRow({
         </button>
         <button type="button" className={`${smallButtonClass} w-20`} onClick={onToggle} disabled={disabled}>
           {active ? "Turn off" : "Turn on"}
+        </button>
+        <button
+          type="button"
+          className={`${smallButtonClass} text-red-600 dark:text-red-400`}
+          onClick={onDelete}
+          disabled={disabled}
+        >
+          Delete
         </button>
       </div>
     </li>

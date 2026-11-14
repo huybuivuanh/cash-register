@@ -3,11 +3,25 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/Button";
-import { CheckboxField, Field, FormActions, FormError, Input, inputClass } from "@/components/ui/form";
+import {
+  CheckboxField,
+  Field,
+  FormActions,
+  FormError,
+  Input,
+  inputClass,
+} from "@/components/ui/form";
 import { Modal } from "@/components/ui/Modal";
-import { errorText, moveId, OffBadge, sectionClass, SettingsRow } from "@/components/settings/SettingsList";
+import {
+  errorText,
+  moveId,
+  OffBadge,
+  sectionClass,
+  SettingsRow,
+} from "@/components/settings/SettingsList";
 import { keyLabel, reservedKeyReason } from "@/lib/shortcuts";
 import { formatRate } from "@/lib/tax";
+import { confirmDialog } from "@/stores/modalStore";
 import { useTaxButtonsStore } from "@/stores/taxButtonsStore";
 import { useTaxesStore } from "@/stores/taxesStore";
 
@@ -15,9 +29,10 @@ function taxText(tax: Tax) {
   return `${tax.label || tax.name} ${formatRate(tax.rateBps)}`;
 }
 
-/** List of keypad tax buttons (T1+2, T1, NO TAX…) with add / edit / reorder / turn off. */
+/** List of keypad tax buttons (T1+2, T1, NO TAX…) with add / edit / reorder / turn off / delete. */
 export function TaxButtonsEditor() {
-  const { taxButtons, updateTaxButton, setOrder } = useTaxButtonsStore();
+  const { taxButtons, updateTaxButton, deleteTaxButton, setOrder } =
+    useTaxButtonsStore();
   const taxes = useTaxesStore((s) => s.taxes);
   const [editing, setEditing] = useState<TaxButton | "new" | null>(null);
   const [busy, setBusy] = useState(false);
@@ -37,13 +52,22 @@ export function TaxButtonsEditor() {
     }
   }
 
+  async function handleDelete(button: TaxButton) {
+    const ok = await confirmDialog(
+      `${button.label} will be removed from the keypad and settings. Past sales don't change.`,
+      { title: `Delete ${button.label}?`, confirmLabel: "Delete", danger: true },
+    );
+    if (ok) run(() => deleteTaxButton(button.id));
+  }
+
   return (
     <section className={sectionClass}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">Tax buttons</h2>
           <p className="text-sm text-foreground/60">
-            The keys on the register, in this order. Each one charges the taxes you pick.
+            The keys on the register, in this order. Each one charges the taxes
+            you pick.
           </p>
         </div>
         <Button onClick={() => setEditing("new")} disabled={!isAdmin}>
@@ -56,7 +80,9 @@ export function TaxButtonsEditor() {
       ) : (
         <ul className="divide-y divide-foreground/10">
           {taxButtons.map((button, i) => {
-            const charged = button.taxIds.flatMap((id) => taxById.get(id) ?? []);
+            const charged = button.taxIds.flatMap(
+              (id) => taxById.get(id) ?? [],
+            );
             return (
               <SettingsRow
                 key={button.id}
@@ -64,9 +90,24 @@ export function TaxButtonsEditor() {
                 first={i === 0}
                 last={i === taxButtons.length - 1}
                 disabled={busy || !isAdmin}
-                onMove={(dir) => run(() => setOrder(moveId(taxButtons.map((b) => b.id), i, dir)))}
+                onMove={(dir) =>
+                  run(() =>
+                    setOrder(
+                      moveId(
+                        taxButtons.map((b) => b.id),
+                        i,
+                        dir,
+                      ),
+                    ),
+                  )
+                }
                 onEdit={() => setEditing(button)}
-                onToggle={() => run(() => updateTaxButton(button.id, { active: !button.active }))}
+                onToggle={() =>
+                  run(() =>
+                    updateTaxButton(button.id, { active: !button.active }),
+                  )
+                }
+                onDelete={() => handleDelete(button)}
               >
                 <p className="font-medium">
                   {button.label}
@@ -79,12 +120,17 @@ export function TaxButtonsEditor() {
                 </p>
                 <p className="text-sm text-foreground/70">
                   {charged.length === 0
-                    ? "No tax"
+                    ? "No Tax"
                     : charged.map((t, j) => (
                         <span key={t.id}>
                           {j > 0 && " + "}
                           {taxText(t)}
-                          {!t.active && <span className="text-red-600 dark:text-red-400"> (off, not charged)</span>}
+                          {!t.active && (
+                            <span className="text-red-600 dark:text-red-400">
+                              {" "}
+                              (off, not charged)
+                            </span>
+                          )}
                         </span>
                       ))}
                 </p>
@@ -121,13 +167,18 @@ function TaxButtonForm({
   const [label, setLabel] = useState(button?.label ?? "");
   const [selected, setSelected] = useState(() => new Set(button?.taxIds ?? []));
   const [active, setActive] = useState(button?.active ?? true);
-  const [shortcut, setShortcut] = useState<string | null>(button?.shortcut ?? null);
+  const [shortcut, setShortcut] = useState<string | null>(
+    button?.shortcut ?? null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   /** Label of another button already using this key, or null. */
   function takenBy(code: string): string | null {
-    return buttons.find((b) => b.id !== button?.id && b.shortcut === code)?.label ?? null;
+    return (
+      buttons.find((b) => b.id !== button?.id && b.shortcut === code)?.label ??
+      null
+    );
   }
 
   // Turned-off taxes are only listed if this button already uses them, so they can be removed.
@@ -146,10 +197,17 @@ function TaxButtonForm({
     e.preventDefault();
     const cleanLabel = label.trim();
     if (!cleanLabel) return setError("Enter the text for the key, like T1+2.");
-    if (buttons.some((b) => b.id !== button?.id && b.label.toLowerCase() === cleanLabel.toLowerCase()))
+    if (
+      buttons.some(
+        (b) =>
+          b.id !== button?.id &&
+          b.label.toLowerCase() === cleanLabel.toLowerCase(),
+      )
+    )
       return setError(`There's already a button called ${cleanLabel}.`);
     const clash = shortcut && takenBy(shortcut);
-    if (clash) return setError(`${keyLabel(shortcut)} is already used by ${clash}.`);
+    if (clash)
+      return setError(`${keyLabel(shortcut)} is already used by ${clash}.`);
     // Keep the taxes in the same order as the tax list.
     const taxIds = taxes.filter((t) => selected.has(t.id)).map((t) => t.id);
 
@@ -157,10 +215,21 @@ function TaxButtonForm({
     setError(null);
     try {
       if (button) {
-        await updateTaxButton(button.id, { label: cleanLabel, taxIds, active, shortcut });
+        await updateTaxButton(button.id, {
+          label: cleanLabel,
+          taxIds,
+          active,
+          shortcut,
+        });
       } else {
         const order = Math.max(0, ...buttons.map((b) => b.order)) + 1;
-        await addTaxButton({ label: cleanLabel, taxIds, order, active: true, shortcut });
+        await addTaxButton({
+          label: cleanLabel,
+          taxIds,
+          order,
+          active: true,
+          shortcut,
+        });
       }
       onClose();
     } catch (err) {
@@ -170,14 +239,36 @@ function TaxButtonForm({
   }
 
   return (
-    <Modal open onClose={onClose} busy={saving} title={button ? `Edit ${button.label}` : "Add tax button"}>
+    <Modal
+      open
+      onClose={onClose}
+      busy={saving}
+      title={button ? `Edit ${button.label}` : "Add tax button"}
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
-        <Field label="Key text" htmlFor="buttonLabel" required hint="Shown on the keypad and receipts, e.g. T1+2.">
-          <Input id="buttonLabel" value={label} maxLength={10} autoFocus onChange={(e) => setLabel(e.target.value)} />
+        <Field
+          label="Key text"
+          htmlFor="buttonLabel"
+          required
+          hint="Shown on the keypad and receipts, e.g. T1+2."
+        >
+          <Input
+            id="buttonLabel"
+            value={label}
+            maxLength={10}
+            autoFocus
+            onChange={(e) => setLabel(e.target.value)}
+          />
         </Field>
         <fieldset className="space-y-2">
-          <legend className="mb-1 text-sm font-medium text-foreground">Charges</legend>
-          {choices.length === 0 && <p className="text-sm text-foreground/60">No taxes are on. Add one above first.</p>}
+          <legend className="mb-1 text-sm font-medium text-foreground">
+            Charges
+          </legend>
+          {choices.length === 0 && (
+            <p className="text-sm text-foreground/60">
+              No taxes are on. Add one above first.
+            </p>
+          )}
           {choices.map((t) => (
             <CheckboxField
               key={t.id}
@@ -186,14 +277,33 @@ function TaxButtonForm({
               onChange={(e) => toggleTax(t.id, e.target.checked)}
             />
           ))}
-          <p className="text-xs text-foreground/60">Leave all unticked for a no-tax button.</p>
+          <p className="text-xs text-foreground/60">
+            Leave all unticked for a no-tax button.
+          </p>
         </fieldset>
-        <Field label="Keyboard key" hint="Optional. Pressing this key on the register presses the button, e.g. Numpad /.">
-          <ShortcutField value={shortcut} onChange={setShortcut} takenBy={takenBy} />
+        <Field
+          label="Keyboard key"
+          hint="Optional. Pressing this key on the register presses the button, e.g. Numpad /."
+        >
+          <ShortcutField
+            value={shortcut}
+            onChange={setShortcut}
+            takenBy={takenBy}
+          />
         </Field>
-        {button && <CheckboxField label="On (shown on the keypad)" checked={active} onChange={(e) => setActive(e.target.checked)} />}
+        {button && (
+          <CheckboxField
+            label="On (shown on the keypad)"
+            checked={active}
+            onChange={(e) => setActive(e.target.checked)}
+          />
+        )}
         <FormError message={error} />
-        <FormActions onCancel={onClose} submitting={saving} submitLabel={button ? "Save" : "Add button"} />
+        <FormActions
+          onCancel={onClose}
+          submitting={saving}
+          submitLabel={button ? "Save" : "Add button"}
+        />
       </form>
     </Modal>
   );
@@ -225,7 +335,8 @@ function ShortcutField({
     const reserved = reservedKeyReason(e.code);
     if (reserved) return setProblem(reserved);
     const other = takenBy(e.code);
-    if (other) return setProblem(`${keyLabel(e.code)} is already used by ${other}.`);
+    if (other)
+      return setProblem(`${keyLabel(e.code)} is already used by ${other}.`);
     onChange(e.code);
     setProblem(null);
     setListening(false);
@@ -246,7 +357,11 @@ function ShortcutField({
           onBlur={() => setListening(false)}
           className={`${inputClass} text-left ${listening ? "ring-2 ring-gold" : ""} ${value || listening ? "" : "text-foreground/50"}`}
         >
-          {listening ? "Press a key… (Esc to stop)" : value ? keyLabel(value) : "None. Click, then press a key"}
+          {listening
+            ? "Press a key… (Esc to stop)"
+            : value
+              ? keyLabel(value)
+              : "None. Click, then press a key"}
         </button>
         {value && !listening && (
           <Button variant="secondary" onClick={() => onChange(null)}>
@@ -254,7 +369,9 @@ function ShortcutField({
           </Button>
         )}
       </div>
-      {problem && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{problem}</p>}
+      {problem && (
+        <p className="mt-1 text-xs text-red-600 dark:text-red-400">{problem}</p>
+      )}
     </div>
   );
 }

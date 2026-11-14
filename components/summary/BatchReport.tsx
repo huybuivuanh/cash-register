@@ -93,7 +93,7 @@ export function BatchReport(props: BatchReportProps) {
         <span className="text-right">TAX</span>
       </div>
       {totals.byTax.length === 0 && (
-        <p className="text-foreground/60">No tax</p>
+        <p className="text-foreground/60">No Tax</p>
       )}
       {totals.byTax.map((t) => (
         <div

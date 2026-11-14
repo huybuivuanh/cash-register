@@ -198,14 +198,23 @@ export function Keypad({
                 tone="tax"
                 className="min-h-20 gap-0.5 py-2"
                 onPress={() => press({ type: "taxButton", button, taxes })}
-                title={button.shortcut ? `Keyboard: ${keyLabel(button.shortcut)}` : undefined}
+                title={
+                  button.shortcut
+                    ? `Keyboard: ${keyLabel(button.shortcut)}`
+                    : undefined
+                }
               >
                 {/* 1: name · 2: taxes · 3: keyboard key */}
                 <span className="text-lg leading-tight">{button.label}</span>
                 <span className="text-xs font-medium leading-tight opacity-70">
                   {taxes.length
-                    ? taxes.map((t) => `${t.label || t.name} ${formatRate(t.rateBps)}`).join(" + ")
-                    : "No tax"}
+                    ? taxes
+                        .map(
+                          (t) =>
+                            `${t.label || t.name} ${formatRate(t.rateBps)}`,
+                        )
+                        .join(" + ")
+                    : "No Tax"}
                 </span>
                 {button.shortcut && (
                   <span className="mt-0.5 rounded border border-foreground/25 bg-background/60 px-1 font-mono text-[10px] font-semibold leading-4">

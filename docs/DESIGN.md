@@ -166,8 +166,9 @@ are listed separately (`RF` count and amount).
 /settings        Store tab: store info, receipt header/footer, auto-print
                  on/off. Counters (Z number, GT, receipt number) are shown
                  but can't be edited: only sales and Z closes change them.
-/settings/taxes  Taxes tab: add / edit / reorder / turn off taxes and
-                 tax buttons.
+/settings/taxes  Taxes tab: add / edit / reorder / turn off / delete taxes
+                 and tax buttons. A tax can't be deleted while a button
+                 still charges it.
 /login           Firebase Auth sign-in
 ```
 
@@ -386,7 +387,7 @@ record how each sale was paid.
 - Staff accounts (`role: "staff"`) will be added by an admin via the Admin SDK
   (server side); not built yet.
 - Firestore rules: members can only read under their own business (checked
-  against `members/{uid}`), and only admins can write; nothing can be deleted; transactions can only be
+  against `members/{uid}`), and only admins can write; only taxes and tax buttons can be deleted; transactions can only be
   created; closed batches are read-only. Staff can read only their own member
   doc; the only write allowed is sign-up creating it as admin of a business
   whose id is their own uid.

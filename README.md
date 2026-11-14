@@ -15,7 +15,7 @@ Next.js (App Router) + Tailwind, Firebase Auth, Cloud Firestore, Zustand.
 | `/summary` | The open batch live (X report), **Close Z**, and print |
 | `/journal` | Every sale, refund and Z close for a date range, with the range's totals; each entry can be printed |
 | `/settings` | Store info, receipt header/footer, auto-print. Counters (Z number, GT, receipt number) are shown but can't be edited |
-| `/settings/taxes` | Add / edit / reorder / turn off taxes and tax buttons, and set a keyboard key for each tax button |
+| `/settings/taxes` | Add / edit / reorder / turn off / delete taxes and tax buttons (a tax can't be deleted while a button still charges it), and set a keyboard key for each tax button |
 | `/login`, `/setup` | Sign in or sign up; a new account sets up its business on `/setup` |
 
 Rules worth knowing (details in DESIGN.md §3):
